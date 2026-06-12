@@ -222,6 +222,7 @@
           <button class="db-tab <%= activeTab==='rounds'?'active':'' %>" onclick="dbTab('rounds',this)">الجولات</button>
           <button class="db-tab <%= activeTab==='leaderboard'?'active':'' %>" onclick="dbTab('leaderboard',this)">الترتيب</button>
           <button class="db-tab <%= activeTab==='news'?'active':'' %>" onclick="dbTab('news',this)">الأخبار</button>
+          <button class="db-tab <%= activeTab==='comments'?'active':'' %>" onclick="dbTab('comments',this)">التعليقات</button>
           <button class="db-tab <%= activeTab==='settings'?'active':'' %>" onclick="dbTab('settings',this)">الإعدادات</button>
         </div>
 
@@ -640,6 +641,41 @@
                   </div>
                 </div>
                 <% }) %>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- ===== TAB: التعليقات ===== -->
+        <div class="db-panel <%= activeTab==='comments'?'active':'' %>" id="panel-comments">
+          <div class="card section-card">
+            <h2>إدارة التعليقات</h2>
+            <p>إظهار، إخفاء، أو حذف تعليقات المتسابقين على الأخبار.</p>
+            <% if (!allComments || allComments.length === 0) { %>
+              <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:12px;">لا توجد تعليقات بعد</p>
+            <% } else { %>
+              <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;">
+                <% allComments.forEach(function(c) { %>
+                <div style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                      <span style="font-weight:800;font-size:0.85rem;color:#D4AF37;"><%= c.user_name %></span>
+                      <span style="font-size:0.7rem;color:var(--text-secondary);"><%= new Date(c.created_at).toLocaleString('ar-EG') %></span>
+                      <% if (!c.visible) { %><span style="font-size:0.7rem;padding:1px 6px;border-radius:6px;background:#ef4444;color:#fff;">مخفي</span><% } %>
+                      <span style="font-size:0.7rem;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;"><%= c.news_title %></span>
+                    </div>
+                    <div style="font-size:0.82rem;color:var(--text);margin-top:4px;line-height:1.5;"><%= c.body %></div>
+                  </div>
+                  <div style="display:flex;gap:4px;flex-shrink:0;">
+                    <% if (c.visible) { %>
+                    <form method="POST" action="/admin/comments/hide/<%= c.id %>"><button type="submit" style="padding:5px 10px;border-radius:8px;border:1px solid #f59e0b;background:transparent;color:#f59e0b;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">إخفاء</button></form>
+                    <% } else { %>
+                    <form method="POST" action="/admin/comments/show/<%= c.id %>"><button type="submit" style="padding:5px 10px;border-radius:8px;border:1px solid #22c55e;background:transparent;color:#22c55e;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">إظهار</button></form>
+                    <% } %>
+                    <form method="POST" action="/admin/comments/delete/<%= c.id %>" onsubmit="return confirm('حذف التعليق؟')"><button type="submit" style="padding:5px 10px;border-radius:8px;border:1px solid #ef4444;background:transparent;color:#ef4444;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">حذف</button></form>
+                  </div>
+                </div>
+                <% }); %>
               </div>
             <% } %>
           </div>

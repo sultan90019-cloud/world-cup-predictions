@@ -320,19 +320,95 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span id="nm-time"></span>
         </div>
+        <!-- Comments Section -->
+        <div style="margin-top:20px;border-top:1px solid rgba(255,255,255,0.08);padding-top:16px;">
+          <div style="font-size:0.85rem;font-weight:800;color:var(--text,#fff);margin-bottom:12px;">التعليقات</div>
+          <div id="nm-comments" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;"></div>
+          <div style="display:flex;gap:8px;">
+            <textarea id="nm-comment-input" placeholder="أكتب تعليقك..." style="flex:1;min-height:40px;max-height:80px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#fff;padding:8px 12px;font-size:0.82rem;font-family:inherit;resize:vertical;" maxlength="300"></textarea>
+            <button id="nm-comment-btn" onclick="submitComment()" style="flex-shrink:0;padding:8px 16px;border-radius:10px;background:#D4AF37;border:none;color:#0A2342;font-weight:800;font-size:0.82rem;cursor:pointer;font-family:inherit;">إرسال</button>
+          </div>
+          <div id="nm-comment-msg" style="font-size:0.75rem;margin-top:6px;display:none;"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <script type="application/json" id="news-json"><%- JSON.stringify(displayNews.map(function(n){ return { title: n.title, body: n.excerpt, img: n.image||'', brk: !!n.breaking, time: n.time }; })) %></script>
+  <script type="application/json" id="news-json"><%- JSON.stringify(displayNews.map(function(n){ return { id: n.id, title: n.title, body: n.excerpt, img: n.image||'', brk: !!n.breaking, time: n.time }; })) %></script>
+  <script type="application/json" id="comments-json"><%- JSON.stringify(Object.fromEntries(displayNews.map(function(n){ return [n.id, (newsComments && newsComments[n.id]) || []]; }))) %></script>
   <script>
     var NEWS_DATA = JSON.parse(document.getElementById('news-json').textContent);
+    var COMMENTS_DATA = JSON.parse(document.getElementById('comments-json').textContent);
+    var nmNewsId = null;
+
+    function timeAgo(dateStr) {
+      var diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+      if (diff < 60) return 'الآن';
+      if (diff < 3600) return 'قبل ' + Math.floor(diff/60) + ' دقيقة';
+      if (diff < 86400) return 'قبل ' + Math.floor(diff/3600) + ' ساعة';
+      return 'قبل ' + Math.floor(diff/86400) + ' يوم';
+    }
+
+    function renderComments(newsId) {
+      var list = document.getElementById('nm-comments');
+      var comments = COMMENTS_DATA[newsId] || [];
+      if (comments.length === 0) {
+        list.innerHTML = '<div style="color:var(--text-secondary,#9ab);font-size:0.8rem;text-align:center;padding:10px 0;">لا توجد تعليقات بعد</div>';
+        return;
+      }
+      list.innerHTML = comments.map(function(c) {
+        return '<div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:10px 12px;">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+            '<span style="font-size:0.82rem;font-weight:800;color:#D4AF37;">' + escHtml(c.user_name) + '</span>' +
+            '<span style="font-size:0.7rem;color:var(--text-secondary,#9ab);">' + timeAgo(c.created_at) + '</span>' +
+          '</div>' +
+          '<div style="font-size:0.82rem;color:var(--text,#fff);line-height:1.6;">' + escHtml(c.body) + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function escHtml(str) {
+      var d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function submitComment() {
+      var input = document.getElementById('nm-comment-input');
+      var btn = document.getElementById('nm-comment-btn');
+      var msg = document.getElementById('nm-comment-msg');
+      var body = input.value.trim();
+      if (!body) { msg.textContent = 'التعليق فارغ'; msg.style.color = '#ef4444'; msg.style.display = ''; return; }
+      if (body.length > 300) { msg.textContent = 'التعليق طويل جداً (300 حرف كحد أقصى)'; msg.style.color = '#ef4444'; msg.style.display = ''; return; }
+      btn.disabled = true; btn.textContent = '...';
+      msg.style.display = 'none';
+      fetch('/news/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ newsId: nmNewsId, body: body })
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.success) {
+          input.value = '';
+          if (!COMMENTS_DATA[nmNewsId]) COMMENTS_DATA[nmNewsId] = [];
+          COMMENTS_DATA[nmNewsId].unshift(data.comment);
+          renderComments(nmNewsId);
+          msg.textContent = 'تم إضافة التعليق'; msg.style.color = '#22c55e'; msg.style.display = '';
+        } else {
+          msg.textContent = data.error || 'حدث خطأ'; msg.style.color = '#ef4444'; msg.style.display = '';
+        }
+      }).catch(function() {
+        msg.textContent = 'حدث خطأ في الاتصال'; msg.style.color = '#ef4444'; msg.style.display = '';
+      }).then(function() {
+        btn.disabled = false; btn.textContent = 'إرسال';
+      });
+    }
 
     document.querySelectorAll('.nw-open-btn').forEach(function(el) {
       el.addEventListener('click', function() {
         var idx = parseInt(this.dataset.idx, 10);
         var n = NEWS_DATA[idx];
         if (!n) return;
+        nmNewsId = n.id;
         document.getElementById('nm-title').textContent = n.title;
         document.getElementById('nm-body').textContent  = n.body;
         document.getElementById('nm-time').textContent  = n.time;
@@ -340,6 +416,9 @@
         if (n.img) { imgEl.src = n.img; imgEl.style.display = 'block'; }
         else { imgEl.style.display = 'none'; }
         document.getElementById('nm-breaking').style.display = n.brk ? 'inline-block' : 'none';
+        document.getElementById('nm-comment-input').value = '';
+        document.getElementById('nm-comment-msg').style.display = 'none';
+        renderComments(nmNewsId);
         document.getElementById('news-modal').style.display = 'block';
         document.body.style.overflow = 'hidden';
       });

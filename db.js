@@ -918,10 +918,17 @@ module.exports = {
   getTeamFlags,
   getGroups,
   initNewsTable,
+  initNewsCommentsTable,
   getNews,
   addNews,
   deleteNews,
   updateNews,
+  addComment,
+  getCommentsByNewsId,
+  getAllComments,
+  hideComment,
+  showComment,
+  deleteComment,
   advanceKnockoutTeams
 };
 
@@ -1118,6 +1125,21 @@ async function initNewsTable() {
   `);
 }
 
+async function initNewsCommentsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS news_comments (
+      id SERIAL PRIMARY KEY,
+      news_id INTEGER NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body TEXT NOT NULL,
+      visible BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_news_comments_news_id ON news_comments(news_id)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_news_comments_user_id ON news_comments(user_id)');
+}
+
 async function getNews() {
   const result = await pool.query('SELECT * FROM news ORDER BY created_at DESC');
   return result.rows;
@@ -1131,6 +1153,7 @@ async function addNews({ title, body, image_path, breaking }) {
 }
 
 async function deleteNews(id) {
+  await pool.query('DELETE FROM news_comments WHERE news_id=$1', [id]);
   const result = await pool.query('DELETE FROM news WHERE id=$1 RETURNING image_path', [id]);
   return result.rows[0];
 }
@@ -1147,4 +1170,48 @@ async function updateNews(id, { title, body, image_path, breaking }) {
       [title, body, breaking || false, id]
     );
   }
+}
+
+// ===== News Comments =====
+
+async function addComment(newsId, userId, body) {
+  const result = await pool.query(
+    'INSERT INTO news_comments (news_id, user_id, body) VALUES ($1, $2, $3) RETURNING *',
+    [newsId, userId, body]
+  );
+  return result.rows[0];
+}
+
+async function getCommentsByNewsId(newsId) {
+  const result = await pool.query(`
+    SELECT c.*, u.name AS user_name
+    FROM news_comments c
+    JOIN users u ON c.user_id = u.id
+    WHERE c.news_id = $1 AND c.visible = true
+    ORDER BY c.created_at DESC
+  `, [newsId]);
+  return result.rows;
+}
+
+async function getAllComments() {
+  const result = await pool.query(`
+    SELECT c.*, u.name AS user_name, n.title AS news_title
+    FROM news_comments c
+    JOIN users u ON c.user_id = u.id
+    JOIN news n ON c.news_id = n.id
+    ORDER BY c.created_at DESC
+  `);
+  return result.rows;
+}
+
+async function hideComment(commentId) {
+  await pool.query('UPDATE news_comments SET visible = false WHERE id = $1', [commentId]);
+}
+
+async function showComment(commentId) {
+  await pool.query('UPDATE news_comments SET visible = true WHERE id = $1', [commentId]);
+}
+
+async function deleteComment(commentId) {
+  await pool.query('DELETE FROM news_comments WHERE id = $1', [commentId]);
 }

@@ -361,8 +361,12 @@ app.get('/news', requireAuth, async (req, res) => {
     const leaderboard = await db.getLeaderboard();
     const top3 = leaderboard.slice(0, 3);
     const newsItems = await db.getNews();
+    const newsComments = {};
+    await Promise.all(newsItems.map(async item => {
+      newsComments[item.id] = await db.getCommentsByNewsId(item.id);
+    }));
 
-    res.render('news', { user: req.user, matches, groups, top3, newsItems });
+    res.render('news', { user: req.user, matches, groups, top3, newsItems, newsComments });
   } catch (err) {
     console.error('Error loading news:', err);
     try {
@@ -379,7 +383,7 @@ app.get('/news', requireAuth, async (req, res) => {
       ];
       const leaderboard = await db.getLeaderboard();
       const top3 = leaderboard.slice(0, 3);
-      res.render('news', { user: req.user, matches, groups: emptyGroups, top3 });
+      res.render('news', { user: req.user, matches, groups: emptyGroups, top3, newsComments: {} });
     } catch (innerErr) {
       console.error('Fallback news error:', innerErr);
       res.status(500).render('error', { message: 'حدث خطأ في تحميل الأخبار' });
@@ -533,6 +537,38 @@ app.post('/admin/news/delete/:id', requireAuth, requireAdmin, adminLimiter, asyn
   }
 });
 
+// ===== News Comments Routes =====
+const commentTimers = {};
+app.post('/news/comment', requireAuth, async (req, res) => {
+  try {
+    if (req.user.status !== 'approved') return res.status(403).json({ error: 'غير مصرح' });
+    const { newsId, body } = req.body;
+    if (!newsId || !body || !body.trim()) return res.status(400).json({ error: 'التعليق فارغ' });
+    if (body.length > 300) return res.status(400).json({ error: 'التعليق طويل جداً (300 حرف كحد أقصى)' });
+    const lastTime = commentTimers[req.user.id] || 0;
+    if (Date.now() - lastTime < 10000) return res.status(429).json({ error: 'الرجاء الانتظار قبل إضافة تعليق آخر' });
+    commentTimers[req.user.id] = Date.now();
+    const comment = await db.addComment(parseInt(newsId), req.user.id, body.trim());
+    const userComment = { ...comment, user_name: req.user.name };
+    res.json({ success: true, comment: userComment });
+  } catch (err) {
+    console.error('Comment error:', err);
+    res.status(500).json({ error: 'حدث خطأ' });
+  }
+});
+
+app.post('/admin/comments/hide/:id', requireAuth, requireAdmin, adminLimiter, async (req, res) => {
+  try { await db.hideComment(req.params.id); res.redirect('/dashboard?tab=comments'); } catch (err) { res.redirect('/dashboard?tab=comments'); }
+});
+
+app.post('/admin/comments/show/:id', requireAuth, requireAdmin, adminLimiter, async (req, res) => {
+  try { await db.showComment(req.params.id); res.redirect('/dashboard?tab=comments'); } catch (err) { res.redirect('/dashboard?tab=comments'); }
+});
+
+app.post('/admin/comments/delete/:id', requireAuth, requireAdmin, adminLimiter, async (req, res) => {
+  try { await db.deleteComment(req.params.id); res.redirect('/dashboard?tab=comments'); } catch (err) { res.redirect('/dashboard?tab=comments'); }
+});
+
 // ===== Admin Routes =====
 app.post('/admin/toggle-predictions/:matchId', requireAuth, requireAdmin, adminLimiter, async (req, res) => {
   try {
@@ -649,7 +685,8 @@ app.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
     const teamFlags = db.getTeamFlags();
     const activeTab = req.query.tab || 'players';
     const newsItems = await db.getNews();
-    res.render('dashboard', { user: req.user, matches, leaderboard, pendingUsers, allUsers, currentRound, publishedRounds, matchesByRound, visiblePredictions, hiddenPredictions, matchPredictions, groups, teamFlags, activeTab, newsItems, message: null });
+    const allComments = await db.getAllComments();
+    res.render('dashboard', { user: req.user, matches, leaderboard, pendingUsers, allUsers, currentRound, publishedRounds, matchesByRound, visiblePredictions, hiddenPredictions, matchPredictions, groups, teamFlags, activeTab, newsItems, allComments, message: null });
   } catch (err) {
     console.error('Dashboard error:', err);
     res.status(500).render('error', { message: 'حدث خطأ في تحميل لوحة التحكم' });
@@ -755,6 +792,7 @@ app.use((err, req, res, next) => {
 db.init()
   .then(async () => {
     await db.initNewsTable();
+    await db.initNewsCommentsTable();
     app.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);
     });
