@@ -152,6 +152,9 @@
     .pm-name { font-weight:700; font-size:0.82rem; color:var(--text); }
     .pm-score { background:var(--primary); color:#fff; border-radius:10px; padding:2px 8px; font-weight:800; font-size:0.78rem; }
     .pm-empty { color:var(--text-secondary); font-size:0.85rem; font-style:italic; text-align:center; padding:20px 0; }
+    .pm-chip-miss { border-color:rgba(239,68,68,0.25); background:rgba(239,68,68,0.06); }
+    .pm-score-miss { background:transparent; color:#ef4444; font-size:0.75rem; padding:2px 4px; font-weight:700; }
+    .pm-countdown { font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px; padding:8px 12px; background:rgba(255,255,255,0.04); border-radius:8px; text-align:center; font-weight:600; }
     .pm-btn { width:100%; padding:9px; border-radius:8px; border:none; font-size:0.85rem; font-weight:700; cursor:pointer; }
     .pm-btn-show { background:#22c55e; color:#fff; }
     .pm-btn-hide { background:#ef4444; color:#fff; }
@@ -426,23 +429,27 @@
           </div>
         </div>
 
-        <script id="pred-data" type="application/json"><%- JSON.stringify(matches.map(function(m){
-          var s = new Date(m.start_at);
-          var lt = new Date(s.getTime() - 10 * 60 * 1000);
-          var dp = Date.now() >= lt.getTime();
-          var mh = hiddenPredictions.includes(m.id);
-          var mv = visiblePredictions.includes(m.id);
-          return {
-            id: m.id,
-            teamA: m.teamA,
-            teamB: m.teamB,
-            flagA: teamFlags[m.teamA]||'unknown',
-            flagB: teamFlags[m.teamB]||'unknown',
-            date: new Date(m.start_at).toLocaleDateString('ar-EG',{weekday:'short',month:'short',day:'numeric',timeZone:'Asia/Riyadh'}),
-            visible: (dp && !mh) || mv,
-            preds: (matchPredictions && matchPredictions[m.id]) ? matchPredictions[m.id].map(function(p){ return {name:p.user_name||p.username, a:p.scoreA, b:p.scoreB}; }) : []
-          };
-        })) %></script>
+        <script id="pred-data" type="application/json"><%- JSON.stringify({
+          approvedUsers: (allUsers||[]).filter(function(u){ return u.role !== 'admin' && u.status === 'approved'; }).map(function(u){ return {id: u.id, name: u.name}; }),
+          matches: matches.map(function(m){
+            var s = new Date(m.start_at);
+            var lt = new Date(s.getTime() - 10 * 60 * 1000);
+            var dp = Date.now() >= lt.getTime();
+            var mh = hiddenPredictions.includes(m.id);
+            var mv = visiblePredictions.includes(m.id);
+            return {
+              id: m.id,
+              teamA: m.teamA,
+              teamB: m.teamB,
+              flagA: teamFlags[m.teamA]||'unknown',
+              flagB: teamFlags[m.teamB]||'unknown',
+              date: new Date(m.start_at).toLocaleDateString('ar-EG',{weekday:'short',month:'short',day:'numeric',timeZone:'Asia/Riyadh'}),
+              visible: (dp && !mh) || mv,
+              lockTime: lt.getTime(),
+              preds: (matchPredictions && matchPredictions[m.id]) ? matchPredictions[m.id].map(function(p){ return {userId: p.user_id, name: p.user_name||p.username, a:p.scoreA, b:p.scoreB}; }) : []
+            };
+          })
+        }) %></script>
 
         <!-- ===== TAB: النتائج ===== -->
         <div class="db-panel <%= activeTab==='results'?'active':'' %>" id="panel-results">
@@ -862,8 +869,11 @@
     }
 
     var predData = JSON.parse(document.getElementById('pred-data').textContent);
+    var predApprovedUsers = predData.approvedUsers || [];
     var predMap = {};
-    predData.forEach(function(m){ predMap[m.id] = m; });
+    (predData.matches || []).forEach(function(m){ predMap[m.id] = m; });
+
+    var pmTimer = null;
 
     function openPredModal(matchId) {
       var m = predMap[matchId];
@@ -871,23 +881,82 @@
       var title = document.getElementById('predModalTitle');
       var body = document.getElementById('predModalBody');
       var footer = document.getElementById('predModalFooter');
-      title.innerHTML = '<img src="/flags/'+m.flagA+'.png" onerror="this.src=\'\'/flags/unknown.png\'\' " class="pm-flag"> '+m.teamA+' <span class="pm-vs">VS</span> '+m.teamB+' <img src="/flags/'+m.flagB+'.png" onerror="this.src=\'\'/flags/unknown.png\'\' " class="pm-flag">';
-      if (m.preds.length === 0) {
-        body.innerHTML = '<p class="pm-empty">لا توجد توقعات بعد</p>';
+      title.innerHTML = '<img src="/flags/'+m.flagA+'.png" onerror="this.src=\'/flags/unknown.png\'" class="pm-flag"> '+m.teamA+' <span class="pm-vs">VS</span> '+m.teamB+' <img src="/flags/'+m.flagB+'.png" onerror="this.src=\'/flags/unknown.png\'" class="pm-flag">';
+
+      // Countdown
+      var now = Date.now();
+      var lockMs = m.lockTime - now;
+      var countdownHtml = '<div class="pm-countdown" id="pmCountdown">';
+      if (lockMs <= 0) {
+        countdownHtml += '⏳ تم إغلاق التوقع';
       } else {
-        var html = '<div class="pm-chips">';
-        m.preds.forEach(function(p){
-          html += '<div class="pm-chip"><span class="pm-name">'+p.name+'</span><span class="pm-score">'+p.a+' - '+p.b+'</span></div>';
+        countdownHtml += '⏳ يغلق التوقع بعد: <span id="pmCountdownVal">'+msToHms(lockMs)+'</span>';
+      }
+      countdownHtml += '</div>';
+
+      // Build lists
+      var predById = {};
+      (m.preds || []).forEach(function(p){ predById[p.userId] = p; });
+      var withPred = [], withoutPred = [];
+      predApprovedUsers.forEach(function(u){
+        if (predById[u.id]) { withPred.push(u); }
+        else { withoutPred.push(u); }
+      });
+
+      if (predApprovedUsers.length === 0) {
+        body.innerHTML = countdownHtml + '<p class="pm-empty">لا يوجد متسابقون بعد</p>';
+      } else {
+        var html = countdownHtml + '<div class="pm-chips">';
+        withPred.forEach(function(u){
+          var p = predById[u.id];
+          html += '<div class="pm-chip"><span class="pm-name">'+escHtml(u.name)+'</span><span class="pm-score">'+p.a+' - '+p.b+'</span></div>';
+        });
+        withoutPred.forEach(function(u){
+          html += '<div class="pm-chip pm-chip-miss"><span class="pm-name">'+escHtml(u.name)+'</span><span class="pm-score pm-score-miss">لم يسجل توقع</span></div>';
         });
         html += '</div>';
         body.innerHTML = html;
       }
+
       footer.innerHTML = '<form method="POST" action="/admin/toggle-predictions/'+matchId+'" style="margin:0">'+(m.visible ? '<button class="pm-btn pm-btn-hide">🔒 إخفاء التوقعات</button>' : '<button class="pm-btn pm-btn-show">👁 إظهار التوقعات</button>')+'</form>';
       document.getElementById('predModalOverlay').classList.add('open');
+
+      // Start countdown timer
+      if (pmTimer) clearInterval(pmTimer);
+      if (lockMs > 0) {
+        pmTimer = setInterval(function(){
+          var el = document.getElementById('pmCountdownVal');
+          if (!el) { clearInterval(pmTimer); pmTimer = null; return; }
+          var remaining = m.lockTime - Date.now();
+          if (remaining <= 0) {
+            el.parentElement.innerHTML = '⏳ تم إغلاق التوقع';
+            clearInterval(pmTimer); pmTimer = null;
+          } else {
+            el.textContent = msToHms(remaining);
+          }
+        }, 1000);
+      }
+    }
+
+    function msToHms(ms) {
+      if (ms <= 0) return '00:00:00';
+      var s = Math.floor(ms / 1000);
+      var h = Math.floor(s / 3600);
+      s %= 3600;
+      var m = Math.floor(s / 60);
+      s %= 60;
+      return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    }
+
+    function escHtml(str) {
+      var d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
     }
 
     function closePredModal() {
       document.getElementById('predModalOverlay').classList.remove('open');
+      if (pmTimer) { clearInterval(pmTimer); pmTimer = null; }
     }
 
     document.addEventListener('keydown', function(e){ if(e.key==='Escape') closePredModal(); });
