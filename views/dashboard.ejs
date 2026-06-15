@@ -473,6 +473,37 @@
               var firstResRoundIdx = resultsRoundDefs.length > 0 ? 0 : -1;
             %>
 
+            <%
+              var resTodayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+              var resYesterdayD = new Date(); resYesterdayD.setDate(resYesterdayD.getDate() - 1);
+              var resYesterdayKey = resYesterdayD.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+              var resTomorrowD = new Date(); resTomorrowD.setDate(resTomorrowD.getDate() + 1);
+              var resTomorrowKey = resTomorrowD.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+              function getResDateKey(d) {
+                if (!d) return '';
+                try { return new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' }); }
+                catch(e) { return ''; }
+              }
+              var resAllMatches = [];
+              resultsRoundDefs.forEach(function(rd) {
+                (matchesByRound[rd.round] || []).forEach(function(m) { resAllMatches.push(m); });
+              });
+              var resCountAll = resAllMatches.length, resCountToday = 0, resCountYesterday = 0, resCountTomorrow = 0;
+              resAllMatches.forEach(function(m) {
+                var dk = getResDateKey(m.start_at);
+                if (dk === resTodayKey) resCountToday++;
+                else if (dk === resYesterdayKey) resCountYesterday++;
+                else if (dk === resTomorrowKey) resCountTomorrow++;
+              });
+            %>
+            <!-- Date Filters -->
+            <div class="pg-group-tabs" id="res-date-filters" style="margin-bottom:8px;">
+              <button class="pg-gtab active" data-res-date="all" onclick="resDateFilter('all',this)">الكل (<%= resCountAll %>)</button>
+              <button class="pg-gtab" data-res-date="yesterday" onclick="resDateFilter('yesterday',this)">أمس (<%= resCountYesterday %>)</button>
+              <button class="pg-gtab" data-res-date="today" onclick="resDateFilter('today',this)">اليوم (<%= resCountToday %>)</button>
+              <button class="pg-gtab" data-res-date="tomorrow" onclick="resDateFilter('tomorrow',this)">غداً (<%= resCountTomorrow %>)</button>
+            </div>
+
             <!-- Round Tabs -->
             <div class="pg-group-tabs" id="res-round-tabs">
               <% resultsRoundDefs.forEach(function(rd, ri) { %>
@@ -508,7 +539,7 @@
                   <p style="color:var(--text-secondary);font-size:0.83rem;padding:8px 0;">لا توجد مباريات في هذه الجولة</p>
                 <% } else { %>
                   <% roundMatches.forEach(function(match) { %>
-                  <div class="db-result-card <%= match.actual_scoreA !== null?'has-result':'' %>">
+                  <div class="db-result-card <%= match.actual_scoreA !== null?'has-result':'' %>" data-rs-date="<%= getResDateKey(match.start_at) %>">
                     <div class="db-result-teams">
                       <img src="/flags/<%= teamFlags[match.teamA]||'unknown' %>.png" onerror="this.src='/flags/unknown.png'" class="db-result-flag">
                       <span class="pg-team-name" style="max-width:none"><%= match.teamA %></span>
@@ -816,12 +847,42 @@
       btn.classList.add('active');
     }
 
+    var resActiveDateFilter = 'all';
+
+    function resDateFilter(filter, btn) {
+      resActiveDateFilter = filter;
+      document.querySelectorAll('#res-date-filters .pg-gtab').forEach(function(t){ t.classList.remove('active'); });
+      if (btn) btn.classList.add('active');
+      var activePanel = document.querySelector('#panel-results .pg-round-panel-main.active');
+      if (!activePanel) return;
+      var todayKey = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+      var d = new Date();
+      var targetKey;
+      if (filter === 'today') {
+        targetKey = todayKey;
+      } else if (filter === 'yesterday') {
+        d.setDate(d.getDate() - 1); targetKey = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+      } else if (filter === 'tomorrow') {
+        d.setDate(d.getDate() + 1); targetKey = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+      }
+      activePanel.querySelectorAll('.db-result-card').forEach(function(card){
+        if (filter === 'all') { card.style.display = ''; }
+        else { card.style.display = (card.getAttribute('data-rs-date') === targetKey) ? '' : 'none'; }
+      });
+    }
+
     function resSwitchRoundTab(ri, btn) {
       document.querySelectorAll('#panel-results .pg-round-panel-main').forEach(function(p){ p.classList.remove('active'); });
       document.querySelectorAll('#res-round-tabs .pg-gtab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('#res-date-filters .pg-gtab').forEach(function(t){ t.classList.remove('active'); });
       var panel = document.getElementById('res-round-panel-' + ri);
       if (panel) panel.classList.add('active');
       btn.classList.add('active');
+      // Reset date filter to all on round switch
+      resActiveDateFilter = 'all';
+      var allBtn = document.querySelector('#res-date-filters .pg-gtab[data-res-date="all"]');
+      if (allBtn) allBtn.classList.add('active');
+      if (panel) panel.querySelectorAll('.db-result-card').forEach(function(c){ c.style.display = ''; });
     }
 
     function resSwitchGroup(gi, btn) {
