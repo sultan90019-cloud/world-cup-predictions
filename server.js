@@ -636,7 +636,9 @@ app.post('/admin/delete/:id', requireAuth, requireAdmin, adminLimiter, async (re
 app.post('/admin/manual-points', requireAuth, requireAdmin, adminLimiter, async (req, res) => {
   try {
     const { userId, points } = req.body;
-    await db.updateManualPoints(parseInt(userId), parseInt(points) || 0);
+    const pts = parseInt(points);
+    if (isNaN(pts) || pts < 0) return res.redirect('/dashboard?tab=players');
+    await db.updateManualPoints(parseInt(userId), pts);
     res.redirect('/dashboard?tab=players');
   } catch (err) {
     console.error('Manual points error:', err);
