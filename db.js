@@ -559,6 +559,10 @@ async function getAllPredictionsForMatch(matchId) {
   return result.rows.map(normalizePrediction);
 }
 
+async function deletePrediction(matchId, userId) {
+  await pool.query('DELETE FROM predictions WHERE match_id = $1 AND user_id = $2', [matchId, userId]);
+}
+
 async function getMatchById(matchId) {
   const result = await pool.query('SELECT * FROM matches WHERE id = $1', [matchId]);
   return normalizeMatch(result.rows[0]) || null;
@@ -942,6 +946,7 @@ module.exports = {
   togglePredictionVisibility,
   toggleRoundPredictionsVisibility,
   getAllPredictionsForMatch,
+  deletePrediction,
   getMatchById,
   savePrediction,
   getPrediction,

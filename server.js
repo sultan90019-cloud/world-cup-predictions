@@ -587,6 +587,16 @@ app.post('/admin/toggle-predictions/:matchId', requireAuth, requireAdmin, adminL
   }
 });
 
+app.post('/admin/delete-prediction/:matchId/:userId', requireAuth, requireAdmin, adminLimiter, async (req, res) => {
+  try {
+    await db.deletePrediction(parseInt(req.params.matchId), parseInt(req.params.userId));
+    res.redirect('/dashboard?tab=predictions');
+  } catch (err) {
+    console.error('Delete prediction error:', err);
+    res.redirect('/dashboard?tab=predictions');
+  }
+});
+
 app.post('/admin/toggle-round-predictions', requireAuth, requireAdmin, adminLimiter, async (req, res) => {
   try {
     const { round, action } = req.body;
