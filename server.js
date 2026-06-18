@@ -121,7 +121,7 @@ const navItems = [
   { id: 'my-predictions', label: 'توقعاتي', url: '/my-predictions', icon: 'list' },
   { id: 'players-predictions', label: 'توقعات المتسابقين', url: '/players-predictions', icon: 'users' },
   { id: 'leaderboard', label: 'الترتيب', url: '/leaderboard', icon: 'trophy' },
-  { id: 'challenge', label: 'التحدي', url: '/challenge', icon: 'trophy' },
+  { id: 'challenge', label: 'لعبة التحدي', url: '/challenge', icon: 'trophy' },
   { id: 'rules', label: 'نظام المسابقة', url: '/rules', icon: 'rules' },
   { id: 'news', label: 'أخبار كأس العالم', url: '/news', icon: 'news' },
   { id: 'dashboard', label: 'لوحة التحكم', url: '/dashboard', icon: 'dashboard', adminOnly: true }
