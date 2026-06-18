@@ -75,6 +75,16 @@
           <div class="ch-saved-msg">✅ تم حفظ توقعاتك بنجاح</div>
           <% } %>
 
+          <% if (picks && picks.qf && config.open) { %>
+          <div style="text-align:center;margin-bottom:16px;">
+            <button type="button" id="chToggleEdit" class="db-btn" style="background:var(--primary);color:#fff;font-weight:800;padding:8px 24px;border:none;border-radius:10px;cursor:pointer;" onclick="toggleEditMode()">
+              ✏️ تعديل التوقعات
+            </button>
+            <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">تم حفظ توقعاتك سابقاً — يمكنك تعديلها حتى موعد الإغلاق</div>
+          </div>
+          <% } %>
+
+          <div id="chEditArea" <%= (picks && picks.qf && config.open) ? 'style="display:none"' : '' %>>
           <form id="chForm" method="POST" action="/challenge/save">
             <!-- Section 1: دور الـ8 -->
             <div class="ch-section">
@@ -153,9 +163,10 @@
             </div>
 
             <button type="submit" class="ch-save-btn" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;" id="chSaveBtn" <%= !config.open ? 'disabled' : '' %>>
-              💾 حفظ التحدي
+              <%= picks && picks.qf ? '💾 تحديث التوقعات' : '💾 حفظ التحدي' %>
             </button>
           </form>
+          </div>
 
         </div>
       </section>
@@ -165,6 +176,16 @@
   <script>
     var configDeadline = '<%= config.deadline || "" %>';
     var isOpen = <%= config.open ? 'true' : 'false' %>;
+    var hasPicks = <%= picks && picks.qf ? 'true' : 'false' %>;
+
+    function toggleEditMode() {
+      var area = document.getElementById('chEditArea');
+      var btn = document.getElementById('chToggleEdit');
+      if (area.style.display === 'none' || area.style.display === '') {
+        area.style.display = 'block';
+        if (btn) btn.style.display = 'none';
+      }
+    }
 
     function toggleTeam(el, section, max) {
       if (!isOpen) return;
