@@ -837,15 +837,58 @@
 
             <!-- Participants List -->
             <div style="margin-top:20px;">
-              <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;">المشاركون (<%= (challengePicks||[]).length %>)</div>
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <% (challengePicks||[]).forEach(function(p) { %>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;">
-                  <span style="font-weight:700;"><%= p.user_name %></span>
-                  <span style="display:flex;gap:6px;">
-                    <% if (p.qf) { %><span style="font-size:0.72rem;color:var(--text-secondary);">QF: <%= p.qf.length %></span><% } %>
-                    <% if (p.sf) { %><span style="font-size:0.72rem;color:var(--text-secondary);">SF: <%= p.sf.length %></span><% } %>
-                  </span>
+              <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;">المشاركون (<%= (challengePicks||[]).length %>):</div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <% (challengePicks||[]).forEach(function(p, pi) { %>
+                <div class="db-pred-match">
+                  <div class="db-pred-match-header" onclick="this.parentElement.classList.toggle('open')">
+                    <div class="db-pred-match-title" style="font-size:0.85rem;">
+                      <span style="font-weight:800;"><%= p.user_name %></span>
+                    </div>
+                    <div class="db-pred-match-right">
+                      <% if (p.qf) { %><span style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;">QF: <%= p.qf.length %></span><% } %>
+                      <% if (p.sf) { %><span style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;">SF: <%= p.sf.length %></span><% } %>
+                      <span class="db-pred-chevron">▼</span>
+                    </div>
+                  </div>
+                  <div class="db-pred-body" style="padding:12px 14px;">
+                    <% if (p.qf && Array.isArray(p.qf)) { %>
+                    <div style="margin-bottom:8px;">
+                      <div style="font-size:0.75rem;font-weight:700;color:#d4af37;margin-bottom:4px;">دور الـ8 (5 نقاط لكل منتخب):</div>
+                      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                        <% p.qf.forEach(function(t) { %>
+                        <span style="padding:2px 8px;background:rgba(212,175,55,0.1);border-radius:6px;font-size:0.78rem;font-weight:600;"><%= t %></span>
+                        <% }) %>
+                      </div>
+                    </div>
+                    <% } %>
+                    <% if (p.sf && Array.isArray(p.sf)) { %>
+                    <div style="margin-bottom:8px;">
+                      <div style="font-size:0.75rem;font-weight:700;color:#d4af37;margin-bottom:4px;">دور الـ4 (10 نقاط لكل منتخب):</div>
+                      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                        <% p.sf.forEach(function(t) { %>
+                        <span style="padding:2px 8px;background:rgba(212,175,55,0.1);border-radius:6px;font-size:0.78rem;font-weight:600;"><%= t %></span>
+                        <% }) %>
+                      </div>
+                    </div>
+                    <% } %>
+                    <% if (p.finalists && Array.isArray(p.finalists)) { %>
+                    <div style="margin-bottom:8px;">
+                      <div style="font-size:0.75rem;font-weight:700;color:#d4af37;margin-bottom:4px;">طرفا النهائي (15 نقطة لكل منتخب):</div>
+                      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                        <% p.finalists.forEach(function(t) { %>
+                        <span style="padding:2px 8px;background:rgba(212,175,55,0.1);border-radius:6px;font-size:0.78rem;font-weight:600;"><%= t %></span>
+                        <% }) %>
+                      </div>
+                    </div>
+                    <% } %>
+                    <% if (p.champion) { %>
+                    <div>
+                      <div style="font-size:0.75rem;font-weight:700;color:#d4af37;margin-bottom:4px;">البطل (20 نقطة):</div>
+                      <span style="padding:2px 10px;background:rgba(212,175,55,0.15);border-radius:6px;font-size:0.82rem;font-weight:800;color:#d4af37;"><%= p.champion %></span>
+                    </div>
+                    <% } %>
+                  </div>
                 </div>
                 <% }) %>
               </div>
