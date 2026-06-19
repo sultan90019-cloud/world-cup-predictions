@@ -474,7 +474,10 @@ app.get('/players-predictions', requireAuth, async (req, res) => {
       return { match, predictions: preds };
     }));
 
-    res.render('players-predictions', { user: req.user, matchesWithPredictions, top3, leaderboard, approvedUsers });
+    const challengePicks = await db.getAllChallengePicks();
+    const challengeStats = await db.getChallengeStats();
+
+    res.render('players-predictions', { user: req.user, matchesWithPredictions, top3, leaderboard, approvedUsers, challengePicks, challengeStats });
   } catch (err) {
     console.error('Players predictions error:', err);
     res.status(500).render('error', { message: 'حدث خطأ في تحميل الصفحة' });

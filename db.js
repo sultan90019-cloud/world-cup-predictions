@@ -744,6 +744,30 @@ async function getAllChallengePicks() {
   return result.rows;
 }
 
+async function getChallengeStats() {
+  const result = await pool.query('SELECT * FROM challenge_picks');
+  const stats = { qf: {}, sf: {}, finalists: {}, champion: {} };
+  for (const row of result.rows) {
+    for (const round of ['qf', 'sf', 'finalists']) {
+      if (row[round] && Array.isArray(row[round])) {
+        for (const team of row[round]) {
+          stats[round][team] = (stats[round][team] || 0) + 1;
+        }
+      }
+    }
+    if (row.champion) {
+      stats.champion[row.champion] = (stats.champion[row.champion] || 0) + 1;
+    }
+  }
+  const sortEntries = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]);
+  return {
+    qf: sortEntries(stats.qf),
+    sf: sortEntries(stats.sf),
+    finalists: sortEntries(stats.finalists),
+    champion: sortEntries(stats.champion)
+  };
+}
+
 async function setChallengeResults(round, teams) {
   await pool.query('DELETE FROM challenge_results WHERE round = $1', [round]);
   for (const team of teams) {
@@ -1073,6 +1097,7 @@ module.exports = {
   saveChallengePicks,
   getChallengePicks,
   getAllChallengePicks,
+  getChallengeStats,
   setChallengeResults,
   getChallengeResults,
   calculateChallengePoints,

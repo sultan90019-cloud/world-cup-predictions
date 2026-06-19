@@ -65,6 +65,16 @@
             </div>
           </div>
 
+          <!-- Tabs: المباريات / لعبة التحدي -->
+          <div class="ms2-group-wrap" style="margin:0 0 6px;padding:0 12px;">
+            <div class="ms2-group-scroll" style="display:flex;gap:6px;">
+              <button class="ms-date-pill active" id="ppTabMatches" onclick="ppSwitchTab('matches',this)">⚽ توقعات المباريات</button>
+              <button class="ms-date-pill" id="ppTabChallenge" onclick="ppSwitchTab('challenge',this)">🎯 لعبة التحدي</button>
+            </div>
+          </div>
+
+          <!-- ===== TAB: المباريات ===== -->
+          <div id="ppSectionMatches">
           <!-- Date Filters -->
           <div class="ms2-group-wrap" style="margin:0 0 10px;padding:0 12px;">
             <div class="ms2-group-scroll">
@@ -353,16 +363,166 @@
                 <% } else { %>
                   <div class="pp-no-preds">لا يوجد متسابقون بعد</div>
                 <% } %>
-              </div>
-            <% }); %>
-          <% } %>
+          </div>
+
+        <% } %>
         </div>
+        </div><!-- end ppSectionMatches -->
+
+        <!-- ===== TAB: لعبة التحدي ===== -->
+        <div id="ppSectionChallenge" style="display:none;">
+
+          <!-- Stats Cards -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px;padding:0 12px;">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;">
+              <div style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;">إجمالي المشاركين</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--text);margin-top:2px;"><%= challengePicks.length %></div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;">
+              <div style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;">منتخب في دور الـ8</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--text);margin-top:2px;"><%= challengeStats.qf.length %></div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;">
+              <div style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;">منتخب في دور الـ4</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--text);margin-top:2px;"><%= challengeStats.sf.length %></div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;">
+              <div style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;">منتخب في النهائي</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--text);margin-top:2px;"><%= challengeStats.finalists.length %></div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center;">
+              <div style="font-size:0.72rem;color:var(--text-secondary);font-weight:700;">مرشح للبطل</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--text);margin-top:2px;"><%= challengeStats.champion.length %></div>
+            </div>
+          </div>
+
+          <!-- Champion Stats -->
+          <div style="padding:0 12px;margin-bottom:16px;">
+            <div style="font-weight:800;font-size:0.9rem;margin-bottom:8px;">🏆 توقعات البطل</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <% challengeStats.champion.forEach(function(entry) { %>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;font-weight:600;">
+                <img src="/flags/<%= teamFlags[entry[0]] || 'unknown' %>.png" class="pp-mini-flag" onerror="this.style.display='none'">
+                <span><%= entry[0] %></span>
+                <span style="background:rgba(212,175,55,0.15);color:#d4af37;padding:1px 8px;border-radius:10px;font-size:0.72rem;font-weight:800;"><%= entry[1] %></span>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+
+          <!-- Finalists Stats -->
+          <div style="padding:0 12px;margin-bottom:16px;">
+            <div style="font-weight:800;font-size:0.9rem;margin-bottom:8px;">🎯 توقعات طرفي النهائي</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <% challengeStats.finalists.forEach(function(entry) { %>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;font-weight:600;">
+                <img src="/flags/<%= teamFlags[entry[0]] || 'unknown' %>.png" class="pp-mini-flag" onerror="this.style.display='none'">
+                <span><%= entry[0] %></span>
+                <span style="background:rgba(99,102,241,0.12);color:var(--primary);padding:1px 8px;border-radius:10px;font-size:0.72rem;font-weight:800;"><%= entry[1] %></span>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+
+          <!-- SF Stats -->
+          <div style="padding:0 12px;margin-bottom:16px;">
+            <div style="font-weight:800;font-size:0.9rem;margin-bottom:8px;">📊 توقعات دور الـ4</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <% challengeStats.sf.forEach(function(entry) { %>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;font-weight:600;">
+                <img src="/flags/<%= teamFlags[entry[0]] || 'unknown' %>.png" class="pp-mini-flag" onerror="this.style.display='none'">
+                <span><%= entry[0] %></span>
+                <span style="background:rgba(34,197,94,0.12);color:#22c55e;padding:1px 8px;border-radius:10px;font-size:0.72rem;font-weight:800;"><%= entry[1] %></span>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+
+          <!-- QF Stats -->
+          <div style="padding:0 12px;margin-bottom:16px;">
+            <div style="font-weight:800;font-size:0.9rem;margin-bottom:8px;">📊 توقعات دور الـ8</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <% challengeStats.qf.forEach(function(entry) { %>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;font-weight:600;">
+                <img src="/flags/<%= teamFlags[entry[0]] || 'unknown' %>.png" class="pp-mini-flag" onerror="this.style.display='none'">
+                <span><%= entry[0] %></span>
+                <span style="background:rgba(245,158,11,0.12);color:#d97706;padding:1px 8px;border-radius:10px;font-size:0.72rem;font-weight:800;"><%= entry[1] %></span>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+
+          <!-- Participants Picks (accordion) -->
+          <div style="padding:0 12px;">
+            <div style="font-weight:800;font-size:0.9rem;margin-bottom:8px;">اختيارات المتسابقين</div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <% challengePicks.forEach(function(p) { %>
+              <div class="db-pred-match">
+                <div class="db-pred-match-header" onclick="this.parentElement.classList.toggle('open')">
+                  <div class="db-pred-match-title" style="font-size:0.85rem;">
+                    <span style="font-weight:800;"><%= p.user_name %></span>
+                  </div>
+                  <div class="db-pred-match-right">
+                    <span class="db-pred-chevron">▼</span>
+                  </div>
+                </div>
+                <div class="db-pred-body" style="padding:12px 14px;">
+                  <% if (p.qf && Array.isArray(p.qf)) { %>
+                  <div style="margin-bottom:8px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#d4af37;margin-bottom:4px;">دور الـ8:</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                      <% p.qf.forEach(function(t) { %>
+                      <span style="padding:2px 8px;background:rgba(212,175,55,0.1);border-radius:6px;font-size:0.78rem;font-weight:600;"><%= t %></span>
+                      <% }) %>
+                    </div>
+                  </div>
+                  <% } %>
+                  <% if (p.sf && Array.isArray(p.sf)) { %>
+                  <div style="margin-bottom:8px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:var(--primary);margin-bottom:4px;">دور الـ4:</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                      <% p.sf.forEach(function(t) { %>
+                      <span style="padding:2px 8px;background:rgba(99,102,241,0.1);border-radius:6px;font-size:0.78rem;font-weight:600;"><%= t %></span>
+                      <% }) %>
+                    </div>
+                  </div>
+                  <% } %>
+                  <% if (p.finalists && Array.isArray(p.finalists)) { %>
+                  <div style="margin-bottom:8px;">
+                    <div style="font-size:0.75rem;font-weight:700;color:#22c55e;margin-bottom:4px;">طرفا النهائي:</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                      <% p.finalists.forEach(function(t) { %>
+                      <span style="padding:2px 8px;background:rgba(34,197,94,0.1);border-radius:6px;font-size:0.78rem;font-weight:600;"><%= t %></span>
+                      <% }) %>
+                    </div>
+                  </div>
+                  <% } %>
+                  <% if (p.champion) { %>
+                  <div>
+                    <div style="font-size:0.75rem;font-weight:700;color:#d4af37;margin-bottom:4px;">البطل:</div>
+                    <span style="padding:2px 10px;background:rgba(212,175,55,0.15);border-radius:6px;font-size:0.82rem;font-weight:800;color:#d4af37;"><%= p.champion %></span>
+                  </div>
+                  <% } %>
+                </div>
+              </div>
+              <% }) %>
+            </div>
+          </div>
+
+        </div><!-- end ppSectionChallenge -->
 
       </section>
     </main>
   </div>
 
   <script>
+    function ppSwitchTab(tab, btn) {
+      document.querySelectorAll('#ppTabMatches, #ppTabChallenge').forEach(function(b){ b.classList.remove('active'); });
+      if (btn) btn.classList.add('active');
+      document.getElementById('ppSectionMatches').style.display = tab === 'matches' ? '' : 'none';
+      document.getElementById('ppSectionChallenge').style.display = tab === 'challenge' ? '' : 'none';
+    }
+
     function ppDateKey(d) {
       if (!d) return '';
       try { return new Date(d).toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' }); } catch(e) { return ''; }
