@@ -153,6 +153,9 @@
                       <% if (m.round >= 4 && saved && item.prediction.predicted_winner) { %>
                       <span style="font-size:0.7rem;font-weight:700;color:#16a34a;display:block;margin-top:2px;">المتأهل: <%= item.prediction.predicted_winner %></span>
                       <% } %>
+                      <% if (saved && item.prediction.penalty_winner) { %>
+                      <span style="font-size:0.65rem;font-weight:700;color:#a855f7;display:block;margin-top:2px;">PK: <%= item.prediction.penalty_winner %></span>
+                      <% } %>
                     </div>
                     <% } else { %>
                     <div class="pc2-pred-none">
@@ -168,6 +171,9 @@
                       <span class="pc2-pred-num"><%= valB %></span>
                       <% if (m.round >= 4 && item.prediction.predicted_winner) { %>
                       <span style="font-size:0.7rem;font-weight:700;color:#16a34a;display:block;margin-top:2px;">المتأهل: <%= item.prediction.predicted_winner %></span>
+                      <% } %>
+                      <% if (item.prediction.penalty_winner) { %>
+                      <span style="font-size:0.65rem;font-weight:700;color:#a855f7;display:block;margin-top:2px;">PK: <%= item.prediction.penalty_winner %></span>
                       <% } %>
                     </div>
                     <% } %>
@@ -203,6 +209,22 @@
                         <label class="pc2-knockout-lbl" style="display:flex;align-items:center;gap:4px;padding:4px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;transition:all 0.15s;background:var(--bg);<%= saved && item.prediction.predicted_winner === m.teamB ? 'border-color:#22c55e;background:rgba(34,197,94,0.08);' : '' %>" onclick="document.getElementById('pw<%= m.id %>B').click()">
                           <input type="radio" name="predictedWinner" value="<%= m.teamB %>" id="pw<%= m.id %>B" form="pc2Form<%= m.id %>" style="display:none" <%= saved && item.prediction.predicted_winner === m.teamB ? 'checked' : '' %> onchange="document.querySelectorAll('#pc2Card<%= m.id %> .pc2-knockout-lbl').forEach(function(l){l.style.borderColor='var(--border)';l.style.background='var(--bg)'});this.parentElement.style.borderColor='#22c55e';this.parentElement.style.background='rgba(34,197,94,0.08)'">
                           <img src="/flags/<%= teamFlags[m.teamB]||'unknown' %>.png" style="width:16px;height:16px;border-radius:2px;" onerror="this.style.display='none'">
+                          <span><%= m.teamB %></span>
+                        </label>
+                      </div>
+                    <!-- Penalty winner picker (يظهر فقط عند توقع التعادل في الأدوار الإقصائية) -->
+                    <% if (m.round >= 4) { %>
+                    <div class="pc2-penalty-pick" id="pc2Penalty<%= m.id %>" style="margin-top:6px;text-align:center;display:none;">
+                      <div style="font-size:0.72rem;font-weight:700;color:var(--text-secondary);margin-bottom:3px;">⚽ الفائز بركلات الترجيح؟</div>
+                      <div style="display:flex;gap:6px;justify-content:center;">
+                        <label class="pc2-penalty-lbl" style="display:flex;align-items:center;gap:3px;padding:3px 10px;border:2px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:600;transition:all 0.15s;background:var(--bg);" onclick="document.getElementById('ppen<%= m.id %>A').click()">
+                          <input type="radio" name="penaltyWinner" value="<%= m.teamA %>" id="ppen<%= m.id %>A" form="pc2Form<%= m.id %>" style="display:none" <%= saved && item.prediction.penalty_winner === m.teamA ? 'checked' : '' %> onchange="document.querySelectorAll('#pc2Card<%= m.id %> .pc2-penalty-lbl').forEach(function(l){l.style.borderColor='var(--border)';l.style.background='var(--bg)'});this.parentElement.style.borderColor='#a855f7';this.parentElement.style.background='rgba(168,85,247,0.08)'">
+                          <img src="/flags/<%= teamFlags[m.teamA]||'unknown' %>.png" style="width:14px;height:14px;border-radius:2px;" onerror="this.style.display='none'">
+                          <span><%= m.teamA %></span>
+                        </label>
+                        <label class="pc2-penalty-lbl" style="display:flex;align-items:center;gap:3px;padding:3px 10px;border:2px solid var(--border);border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:600;transition:all 0.15s;background:var(--bg);" onclick="document.getElementById('ppen<%= m.id %>B').click()">
+                          <input type="radio" name="penaltyWinner" value="<%= m.teamB %>" id="ppen<%= m.id %>B" form="pc2Form<%= m.id %>" style="display:none" <%= saved && item.prediction.penalty_winner === m.teamB ? 'checked' : '' %> onchange="document.querySelectorAll('#pc2Card<%= m.id %> .pc2-penalty-lbl').forEach(function(l){l.style.borderColor='var(--border)';l.style.background='var(--bg)'});this.parentElement.style.borderColor='#a855f7';this.parentElement.style.background='rgba(168,85,247,0.08)'">
+                          <img src="/flags/<%= teamFlags[m.teamB]||'unknown' %>.png" style="width:14px;height:14px;border-radius:2px;" onerror="this.style.display='none'">
                           <span><%= m.teamB %></span>
                         </label>
                       </div>
@@ -257,18 +279,28 @@
           <!-- Points Bar -->
           <div class="pc2-pts-bar">
             <div class="pc2-pts-item">
-              <span class="pc2-pts-num">5</span>
-              <span class="pc2-pts-desc">توقع النتيجة الصحيحة</span>
+              <span class="pc2-pts-num">25</span>
+              <span class="pc2-pts-desc">توقع النتيجة الصحيحة<br><small style="color:rgba(255,255,255,0.4)">(الإقصائيات)</small></span>
             </div>
             <div class="pc2-pts-sep"></div>
             <div class="pc2-pts-item">
-              <span class="pc2-pts-num">3</span>
+              <span class="pc2-pts-num">20</span>
+              <span class="pc2-pts-desc">توقع النتيجة الصحيحة<br><small style="color:rgba(255,255,255,0.4)">(المجموعات)</small></span>
+            </div>
+            <div class="pc2-pts-sep"></div>
+            <div class="pc2-pts-item">
+              <span class="pc2-pts-num">15</span>
               <span class="pc2-pts-desc">توقع الفارق الصحيح</span>
             </div>
             <div class="pc2-pts-sep"></div>
             <div class="pc2-pts-item">
-              <span class="pc2-pts-num">1</span>
+              <span class="pc2-pts-num">10</span>
               <span class="pc2-pts-desc">توقع الاتجاه الصحيح</span>
+            </div>
+            <div class="pc2-pts-sep"></div>
+            <div class="pc2-pts-item">
+              <span class="pc2-pts-num">+5</span>
+              <span class="pc2-pts-desc">ركلات الترجيح<br><small style="color:rgba(255,255,255,0.4)">(للتعادل فقط)</small></span>
             </div>
             <a href="/rules" class="pc2-pts-link">
               <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
@@ -396,13 +428,16 @@
                       <% if (itm.match.round >= 4 && itm.prediction.predicted_winner) { %>
                       <span style="font-size:0.72rem;font-weight:700;color:#16a34a;margin-right:4px;">· المتأهل: <%= itm.prediction.predicted_winner %></span>
                       <% } %>
+                      <% if (itm.prediction.penalty_winner) { %>
+                      <span style="font-size:0.68rem;font-weight:700;color:#a855f7;margin-right:4px;">· PK: <%= itm.prediction.penalty_winner %></span>
+                      <% } %>
                     </div>
                     <% } else if (ended) { %>
                     <div class="pr-pred-display pr-pred-missed">
                       <span class="pr-pred-label">لم تسجل توقعك</span>
                     </div>
                     <% } %>
-                    <form method="POST" action="/predictions" class="pr-pred-form"><input type="hidden" name="matchId" value="<%= itm.match.id %>"><div class="pr-score-inputs"><input type="number" name="scoreA" value="<%= hasP ? itm.prediction.scoreA : '' %>" min="0" placeholder="0" required class="pr-score-input" <%= (lck||ended) ? 'disabled' : '' %>><span class="pr-score-sep">-</span><input type="number" name="scoreB" value="<%= hasP ? itm.prediction.scoreB : '' %>" min="0" placeholder="0" required class="pr-score-input" <%= (lck||ended) ? 'disabled' : '' %>></div>
+                    <form method="POST" action="/predictions" class="pr-pred-form"><input type="hidden" name="matchId" value="<%= itm.match.id %>"><div class="pr-score-inputs"><input type="number" name="scoreA" value="<%= hasP ? itm.prediction.scoreA : '' %>" min="0" placeholder="0" required class="pr-score-input pr-score-pr" <%= (lck||ended) ? 'disabled' : '' %> oninput="prTogglePenalty(this)"><span class="pr-score-sep">-</span><input type="number" name="scoreB" value="<%= hasP ? itm.prediction.scoreB : '' %>" min="0" placeholder="0" required class="pr-score-input pr-score-pr" <%= (lck||ended) ? 'disabled' : '' %> oninput="prTogglePenalty(this)"></div>
                     <% if (itm.match.round >= 4) { %>
                     <div style="display:flex;align-items:center;gap:4px;margin:4px 0 0;font-size:0.72rem;">
                       <span style="font-weight:700;color:var(--text-secondary);white-space:nowrap;">🏆 متأهل:</span>
@@ -413,6 +448,18 @@
                       <label style="display:flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-weight:600;transition:all 0.12s;<%= hasP && itm.prediction.predicted_winner === itm.match.teamB ? 'border-color:#22c55e;background:rgba(34,197,94,0.08);' : '' %>" onclick="event.stopPropagation();this.querySelector('input').click()">
                         <input type="radio" name="predictedWinner" value="<%= itm.match.teamB %>" style="display:none" <%= hasP && itm.prediction.predicted_winner === itm.match.teamB ? 'checked' : '' %> <%= (lck||ended) ? 'disabled' : '' %> onchange="var p=this.closest('.pr-pred-form');p.querySelectorAll('label').forEach(function(l){l.style.borderColor='var(--border)';l.style.background='transparent'});this.parentElement.style.borderColor='#22c55e';this.parentElement.style.background='rgba(34,197,94,0.08)'">
                         <span style="font-size:0.72rem;"><%= itm.match.teamB %></span>
+                      </label>
+                    </div>
+                    <!-- Penalty winner for desktop -->
+                    <div class="pr-penalty-pick" id="prPenalty<%= itm.match.id %>" style="display:none;margin-top:4px;font-size:0.72rem;">
+                      <span style="font-weight:700;color:var(--text-secondary);white-space:nowrap;">⚽ ركلات ترجيح:</span>
+                      <label style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-weight:600;margin-right:4px;<%= hasP && itm.prediction.penalty_winner === itm.match.teamA ? 'border-color:#a855f7;background:rgba(168,85,247,0.08);' : '' %>" onclick="event.stopPropagation();this.querySelector('input').click()">
+                        <input type="radio" name="penaltyWinner" value="<%= itm.match.teamA %>" style="display:none" <%= hasP && itm.prediction.penalty_winner === itm.match.teamA ? 'checked' : '' %> <%= (lck||ended) ? 'disabled' : '' %> onchange="var p=this.closest('.pr-penalty-pick');p.querySelectorAll('label').forEach(function(l){l.style.borderColor='var(--border)';l.style.background='transparent'});this.parentElement.style.borderColor='#a855f7';this.parentElement.style.background='rgba(168,85,247,0.08)'">
+                        <span><%= itm.match.teamA %></span>
+                      </label>
+                      <label style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-weight:600;<%= hasP && itm.prediction.penalty_winner === itm.match.teamB ? 'border-color:#a855f7;background:rgba(168,85,247,0.08);' : '' %>" onclick="event.stopPropagation();this.querySelector('input').click()">
+                        <input type="radio" name="penaltyWinner" value="<%= itm.match.teamB %>" style="display:none" <%= hasP && itm.prediction.penalty_winner === itm.match.teamB ? 'checked' : '' %> <%= (lck||ended) ? 'disabled' : '' %> onchange="var p=this.closest('.pr-penalty-pick');p.querySelectorAll('label').forEach(function(l){l.style.borderColor='var(--border)';l.style.background='transparent'});this.parentElement.style.borderColor='#a855f7';this.parentElement.style.background='rgba(168,85,247,0.08)'">
+                        <span><%= itm.match.teamB %></span>
                       </label>
                     </div>
                     <% } %>
@@ -494,7 +541,24 @@
       display.textContent = next;
       var btn = document.getElementById('pc2Btn' + id);
       if (btn) { btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg> حفظ التوقع'; }
+      // إظهار/إخفاء اختيار ركلات الترجيح عند التعادل
+      pc2TogglePenalty(id);
     }
+    function pc2TogglePenalty(id) {
+      var a = parseInt(document.getElementById('pc2A' + id).value) || 0;
+      var b = parseInt(document.getElementById('pc2B' + id).value) || 0;
+      var el = document.getElementById('pc2Penalty' + id);
+      if (el) {
+        el.style.display = (a === b) ? 'block' : 'none';
+      }
+    }
+    // تفعيل ركلات الترجيح للتوقعات المحفوظة مسبقاً
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('[id^="pc2Penalty"]').forEach(function(el){
+        var id = el.id.replace('pc2Penalty', '');
+        if (id) pc2TogglePenalty(id);
+      });
+    });
     function pc2Submit(id) {
       var a = parseInt(document.getElementById('pc2A' + id).value) || 0;
       var b = parseInt(document.getElementById('pc2B' + id).value) || 0;
@@ -531,6 +595,39 @@
       }
       pc2ResetShowMore();
     })();
+
+    // Penalty winner toggle for desktop (pr) forms
+    function prTogglePenalty(input) {
+      var form = input.closest('.pr-pred-form');
+      if (!form) return;
+      var inputs = form.querySelectorAll('.pr-score-pr');
+      if (inputs.length < 2) return;
+      var a = parseInt(inputs[0].value) || 0;
+      var b = parseInt(inputs[1].value) || 0;
+      var matchId = form.querySelector('input[name="matchId"]');
+      if (!matchId) return;
+      var penaltyEl = document.getElementById('prPenalty' + matchId.value);
+      if (penaltyEl) {
+        penaltyEl.style.display = (a === b) ? 'block' : 'none';
+      }
+    }
+    // Activate penalty pickers on load for saved predictions
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('.pr-pred-form').forEach(function(form){
+        var inputs = form.querySelectorAll('.pr-score-pr');
+        if (inputs.length === 2 && inputs[0].value && inputs[1].value) {
+          var a = parseInt(inputs[0].value) || 0;
+          var b = parseInt(inputs[1].value) || 0;
+          if (a === b) {
+            var matchId = form.querySelector('input[name="matchId"]');
+            if (matchId) {
+              var penaltyEl = document.getElementById('prPenalty' + matchId.value);
+              if (penaltyEl) penaltyEl.style.display = 'block';
+            }
+          }
+        }
+      });
+    });
 
     // Show more
     var pc2VisibleCount = 5;

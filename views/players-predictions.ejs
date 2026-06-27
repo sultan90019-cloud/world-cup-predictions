@@ -256,6 +256,9 @@
                             <% if (m.round >= 4 && pred.predicted_winner) { %>
                             <span style="font-size:0.7rem;font-weight:700;color:#16a34a;margin-right:4px;"><%= pred.predicted_winner %></span>
                             <% } %>
+                            <% if (pred.penalty_winner) { %>
+                            <span style="font-size:0.65rem;font-weight:700;color:#a855f7;margin-right:2px;">(PK: <%= pred.penalty_winner %>)</span>
+                            <% } %>
                           </span>
                           <% } else { %>
                           <span class="pp-no-pred-text">لم يسجل توقع</span>
@@ -369,6 +372,9 @@
                     </div>
                     <% if (item.match.round >= 4 && dp.predicted_winner) { %>
                     <span style="font-size:0.68rem;font-weight:700;color:#16a34a;margin:0 4px;">·<%= dp.predicted_winner %></span>
+                    <% } %>
+                    <% if (dp.penalty_winner) { %>
+                    <span style="font-size:0.65rem;font-weight:700;color:#a855f7;margin:0 4px;">PK:<%= dp.penalty_winner %></span>
                     <% } %>
                     <span class="pp-pred-team-name"><%= item.match.teamB %></span>
                     <img class="pp-pred-flag" src="/flags/<%= teamFlags[item.match.teamB] || 'unknown' %>.png" alt="" onerror="this.src='/flags/unknown.png'">

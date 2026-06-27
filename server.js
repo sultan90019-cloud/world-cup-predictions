@@ -437,7 +437,8 @@ app.post('/predictions', requireAuth, async (req, res) => {
     }
     var existing = await db.getPrediction(req.user.id, match.id);
     var predictedWinner = req.body.predictedWinner || null;
-    await db.savePrediction(req.user.id, match.id, a, b, predictedWinner);
+    var penaltyWinner = req.body.penaltyWinner || null;
+    await db.savePrediction(req.user.id, match.id, a, b, predictedWinner, penaltyWinner);
     if (existing) {
       res.redirect('/predictions?msg=updated');
     } else {
@@ -869,16 +870,20 @@ app.post('/matches/:id/result', requireAuth, requireAdmin, async (req, res) => {
       await db.updateMatchResult(match.id, null, null);
       await db.calculateGroupStandings();
       await db.advanceKnockoutTeams();
+      await db.recalculateAllPredictionPoints();
       return res.redirect('/dashboard?tab=results');
     }
     
     const a = parseInt(scoreA, 10);
     const b = parseInt(scoreB, 10);
     if (Number.isNaN(a) || Number.isNaN(b)) return res.redirect('/dashboard?tab=results');
-    await db.updateMatchResult(match.id, a, b, actualWinner || null);
+    var penaltyWinner = req.body.penaltyWinner || null;
+    await db.updateMatchResult(match.id, a, b, actualWinner || null, penaltyWinner);
     await db.calculateGroupStandings();
     // تقدم الفرق أوتوماتيك في الأدوار الإقصائية
     await db.advanceKnockoutTeams();
+    // إعادة احتساب نقاط جميع التوقعات لهذه المباراة
+    await db.recalculateAllPredictionPoints();
     res.redirect('/dashboard?tab=results');
   } catch (err) {
     console.error('Update result error:', err);

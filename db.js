@@ -282,6 +282,13 @@ async function init() {
     await client.query("ALTER TABLE predictions ADD COLUMN IF NOT EXISTS predicted_winner VARCHAR(100)");
     await client.query("ALTER TABLE matches ADD COLUMN IF NOT EXISTS actual_winner VARCHAR(100)");
 
+    // Safe migration: points column for predictions (pre-calculated points)
+    await client.query("ALTER TABLE predictions ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0");
+
+    // Safe migration: penalty winner for draws in knockout
+    await client.query("ALTER TABLE predictions ADD COLUMN IF NOT EXISTS penalty_winner VARCHAR(100)");
+    await client.query("ALTER TABLE matches ADD COLUMN IF NOT EXISTS penalty_winner VARCHAR(100)");
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS challenge_picks (
         id SERIAL PRIMARY KEY,
@@ -597,14 +604,14 @@ async function getMatchById(matchId) {
   return normalizeMatch(result.rows[0]) || null;
 }
 
-async function savePrediction(userId, matchId, scoreA, scoreB, predictedWinner) {
+async function savePrediction(userId, matchId, scoreA, scoreB, predictedWinner, penaltyWinner) {
   const result = await pool.query(`
-    INSERT INTO predictions (user_id, match_id, scoreA, scoreB, predicted_winner, updated_at)
-    VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+    INSERT INTO predictions (user_id, match_id, scoreA, scoreB, predicted_winner, penalty_winner, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
     ON CONFLICT (user_id, match_id)
-    DO UPDATE SET scoreA = $3, scoreB = $4, predicted_winner = COALESCE($5, predictions.predicted_winner), updated_at = CURRENT_TIMESTAMP
+    DO UPDATE SET scoreA = $3, scoreB = $4, predicted_winner = COALESCE($5, predictions.predicted_winner), penalty_winner = COALESCE($6, predictions.penalty_winner), updated_at = CURRENT_TIMESTAMP
     RETURNING *
-  `, [userId, matchId, scoreA, scoreB, predictedWinner || null]);
+  `, [userId, matchId, scoreA, scoreB, predictedWinner || null, penaltyWinner || null]);
   return result.rows[0];
 }
 
@@ -646,16 +653,16 @@ async function updateKnockoutTeams(matchId, teamA, teamB) {
   );
 }
 
-async function updateMatchResult(matchId, scoreA, scoreB, actualWinner) {
+async function updateMatchResult(matchId, scoreA, scoreB, actualWinner, penaltyWinner) {
   if (scoreA === null && scoreB === null) {
     await pool.query(
-      'UPDATE matches SET actual_scoreA = NULL, actual_scoreB = NULL, actual_winner = NULL WHERE id = $1',
+      'UPDATE matches SET actual_scoreA = NULL, actual_scoreB = NULL, actual_winner = NULL, penalty_winner = NULL WHERE id = $1',
       [matchId]
     );
   } else {
     await pool.query(
-      'UPDATE matches SET actual_scoreA = $1, actual_scoreB = $2, actual_winner = COALESCE($3, actual_winner) WHERE id = $4',
-      [scoreA, scoreB, actualWinner || null, matchId]
+      'UPDATE matches SET actual_scoreA = $1, actual_scoreB = $2, actual_winner = COALESCE($3, actual_winner), penalty_winner = COALESCE($4, penalty_winner) WHERE id = $5',
+      [scoreA, scoreB, actualWinner || null, penaltyWinner || null, matchId]
     );
   }
 }
@@ -663,23 +670,7 @@ async function updateMatchResult(matchId, scoreA, scoreB, actualWinner) {
 async function getLeaderboard() {
   const result = await pool.query(`
     SELECT u.id, u.name, u.username,
-      COALESCE(SUM(
-        CASE
-          WHEN p.scoreA = m.actual_scoreA AND p.scoreB = m.actual_scoreB THEN 20
-          WHEN p.scoreA IS NOT NULL AND m.actual_scoreA IS NOT NULL THEN
-            CASE
-              WHEN (p.scoreA > p.scoreB AND m.actual_scoreA > m.actual_scoreB)
-                OR (p.scoreA < p.scoreB AND m.actual_scoreA < m.actual_scoreB)
-                OR (p.scoreA = p.scoreB AND m.actual_scoreA = m.actual_scoreB) THEN
-                CASE
-                  WHEN (p.scoreA - p.scoreB) = (m.actual_scoreA - m.actual_scoreB) THEN 15
-                  ELSE 10
-                END
-              ELSE 0
-            END
-          ELSE 0
-        END
-      ), 0) + COALESCE(u.manual_points, 0) + COALESCE(u.challenge_points, 0) AS total,
+      COALESCE(SUM(p.points), 0) + COALESCE(u.manual_points, 0) + COALESCE(u.challenge_points, 0) AS total,
       u.manual_points,
       u.challenge_points,
       COUNT(p.id) AS predictions_count,
@@ -928,23 +919,7 @@ async function getLeaderboardStats() {
   const totalMatches = parseInt(matchesResult.rows[0].count) || 0;
 
   const topScoreResult = await pool.query(`
-    SELECT u.name, COALESCE(SUM(
-      CASE
-        WHEN p.scoreA = m.actual_scoreA AND p.scoreB = m.actual_scoreB THEN 20
-        WHEN p.scoreA IS NOT NULL AND m.actual_scoreA IS NOT NULL THEN
-          CASE
-            WHEN (p.scoreA > p.scoreB AND m.actual_scoreA > m.actual_scoreB)
-              OR (p.scoreA < p.scoreB AND m.actual_scoreA < m.actual_scoreB)
-              OR (p.scoreA = p.scoreB AND m.actual_scoreA = m.actual_scoreB) THEN
-              CASE
-                WHEN (p.scoreA - p.scoreB) = (m.actual_scoreA - m.actual_scoreB) THEN 15
-                ELSE 10
-              END
-            ELSE 0
-          END
-        ELSE 0
-      END
-    ), 0) + COALESCE(u.manual_points, 0) + COALESCE(u.challenge_points, 0) AS total
+    SELECT u.name, COALESCE(SUM(p.points), 0) + COALESCE(u.manual_points, 0) + COALESCE(u.challenge_points, 0) AS total
     FROM users u
     LEFT JOIN predictions p ON u.id = p.user_id
     LEFT JOIN matches m ON p.match_id = m.id
@@ -1006,7 +981,9 @@ function normalizeMatch(row) {
     actual_scoreA: row.actual_scorea != null ? row.actual_scorea : row.actual_scoreA,
     actual_scoreB: row.actual_scoreb != null ? row.actual_scoreb : row.actual_scoreB,
     round: row.round,
-    created_at: row.created_at
+    created_at: row.created_at,
+    actual_winner: row.actual_winner || row.actualwinner || null,
+    penalty_winner: row.penalty_winner || row.penaltywinner || null
   };
 }
 
@@ -1027,7 +1004,9 @@ function normalizePrediction(row) {
     actual_scoreA: row.actual_scorea != null ? row.actual_scorea : (row.actual_scoreA != null ? row.actual_scoreA : null),
     actual_scoreB: row.actual_scoreb != null ? row.actual_scoreb : (row.actual_scoreB != null ? row.actual_scoreB : null),
     user_name: row.user_name || row.username || null,
-    predicted_winner: row.predicted_winner || row.predictedwinner || null
+    predicted_winner: row.predicted_winner || row.predictedwinner || null,
+    penalty_winner: row.penalty_winner || row.penaltywinner || null,
+    points: row.points != null ? parseInt(row.points) : 0
   };
 }
 
@@ -1048,21 +1027,90 @@ function getTeamFlags() {
   };
 }
 
-function calculatePoints(predA, predB, actA, actB) {
+function calculatePoints(predA, predB, actA, actB, round, predPenaltyWinner, actualPenaltyWinner) {
   if (actA == null || actB == null) return 0;
   if (predA == null || predB == null) return 0;
 
-  if (predA === actA && predB === actB) return 20;
-  const actualDiff = actA - actB;
-  const predictedDiff = predA - predB;
-  const actualOutcome = Math.sign(actualDiff);
-  const predictedOutcome = Math.sign(predictedDiff);
+  var isKnockout = round >= 4;
+  var points = 0;
 
-  if (actualOutcome === predictedOutcome) {
-    if (actualDiff === predictedDiff) return 15;
-    return 10;
+  if (isKnockout) {
+    // === نظام الأدوار الإقصائية الجديد ===
+    if (predA === actA && predB === actB) {
+      points = 25;
+    } else {
+      var actualDiff = actA - actB;
+      var predictedDiff = predA - predB;
+      var actualOutcome = Math.sign(actualDiff);
+      var predictedOutcome = Math.sign(predictedDiff);
+
+      if (actualOutcome === predictedOutcome) {
+        if (actualDiff === predictedDiff) {
+          points = 15;
+        } else {
+          points = 10;
+        }
+      }
+    }
+
+    // مكافأة ركلات الترجيح (فقط إذا توقع المتسابق تعادل والنتيجة تعادل)
+    if (predA === predB && actA === actB) {
+      if (predPenaltyWinner && actualPenaltyWinner && predPenaltyWinner === actualPenaltyWinner) {
+        points += 5;
+      }
+    }
+  } else {
+    // === نظام دور المجموعات (بدون تغيير) ===
+    if (predA === actA && predB === actB) {
+      points = 20;
+    } else {
+      var actualDiff = actA - actB;
+      var predictedDiff = predA - predB;
+      var actualOutcome = Math.sign(actualDiff);
+      var predictedOutcome = Math.sign(predictedDiff);
+
+      if (actualOutcome === predictedOutcome) {
+        if (actualDiff === predictedDiff) {
+          points = 15;
+        } else {
+          points = 10;
+        }
+      }
+    }
   }
-  return 0;
+
+  return points;
+}
+
+async function recalculateAllPredictionPoints() {
+  try {
+    var predictions = await pool.query(`
+      SELECT p.id, p.user_id, p.match_id, p.scoreA, p.scoreB, p.penalty_winner,
+        m.actual_scoreA, m.actual_scoreB, m.round, m.penalty_winner AS actual_penalty_winner
+      FROM predictions p
+      JOIN matches m ON p.match_id = m.id
+      WHERE m.actual_scoreA IS NOT NULL AND m.actual_scoreB IS NOT NULL
+    `);
+
+    for (var row of predictions.rows) {
+      var pts = calculatePoints(
+        row.scorea != null ? row.scorea : row.scoreA,
+        row.scoreb != null ? row.scoreb : row.scoreB,
+        row.actual_scorea != null ? row.actual_scorea : row.actual_scoreA,
+        row.actual_scoreb != null ? row.actual_scoreb : row.actual_scoreB,
+        row.round,
+        row.penalty_winner || row.penaltywinner || null,
+        row.actual_penalty_winner || null
+      );
+      var predId = row.id;
+      await pool.query('UPDATE predictions SET points = $1 WHERE id = $2', [pts, predId]);
+    }
+
+    return predictions.rows.length;
+  } catch (err) {
+    console.error('recalculateAllPredictionPoints error:', err);
+    throw err;
+  }
 }
 
 function getGroups() {
@@ -1137,7 +1185,8 @@ module.exports = {
   showComment,
   deleteComment,
   advanceKnockoutTeams,
-  autoCalculateChallengeResults
+  autoCalculateChallengeResults,
+  recalculateAllPredictionPoints
 };
 
 // ===== AUTO CHALLENGE RESULTS (استخراج المنتخبات المتأهلة تلقائياً) =====

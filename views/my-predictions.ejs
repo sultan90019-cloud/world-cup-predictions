@@ -18,7 +18,7 @@
   predictions.forEach(function(p) {
     if (p.actual_scoreA == null) { mpRemaining++; return; }
     mpJudged++;
-    if (p.points >= 20) mpCorrect++;
+    if (p.points >= 20 || (p.round >= 4 && p.points >= 25)) mpCorrect++;
     else if (p.points >= 10) mpClose++;
     else mpWrong++;
   });
@@ -196,6 +196,12 @@
                   <span class="mp-dtl-lbl">النقاط المكتسبة</span>
                   <span class="mp-dtl-val mp-dtl-green">+<%= p.points %></span>
                 </div>
+                <% if (p.penalty_winner) { %>
+                <div class="mp-dtl-row">
+                  <span class="mp-dtl-lbl">ركلات الترجيح</span>
+                  <span class="mp-dtl-val"><%= p.penalty_winner %></span>
+                </div>
+                <% } %>
                 <div class="mp-dtl-row">
                   <span class="mp-dtl-lbl">التقييم</span>
                   <span class="mp-dtl-val"><%= stateLabel %></span>
