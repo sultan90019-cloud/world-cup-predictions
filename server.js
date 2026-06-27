@@ -835,7 +835,19 @@ app.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
     for (const item of newsItems) {
       newsReadStats[item.id] = await db.getNewsReadStats(item.id);
     }
-    res.render('dashboard', { user: req.user, matches, leaderboard: leaderboardWithMissed, pendingUsers, allUsers, currentRound, publishedRounds, matchesByRound, visiblePredictions, hiddenPredictions, matchPredictions, groups, teamFlags, activeTab, newsItems, allComments, message: null, config, challengePicks, challengeResults, newsReadStats });
+    // بيانات الأدوار الإقصائية
+    var seedingPairings = null;
+    var bracketStatus = null;
+    var bestThirds = null;
+    try {
+      bestThirds = await db.getBestThirds();
+      seedingPairings = await db.getRound32Pairings();
+      bracketStatus = await db.getKnockoutBracketStatus();
+    } catch (err) {
+      console.error('Bracket data error:', err.message || err);
+    }
+
+    res.render('dashboard', { user: req.user, matches, leaderboard: leaderboardWithMissed, pendingUsers, allUsers, currentRound, publishedRounds, matchesByRound, visiblePredictions, hiddenPredictions, matchPredictions, groups, teamFlags, activeTab, newsItems, allComments, message: null, config, challengePicks, challengeResults, newsReadStats, seedingPairings, bracketStatus, bestThirds });
   } catch (err) {
     console.error('Dashboard error:', err);
     res.status(500).render('error', { message: 'حدث خطأ في تحميل لوحة التحكم' });
@@ -974,6 +986,47 @@ app.post('/admin/challenge/calculate', requireAuth, requireAdmin, adminLimiter, 
     await db.calculateChallengePoints();
     res.redirect('/dashboard?tab=challenge');
   } catch (err) { console.error(err); res.redirect('/dashboard?tab=challenge'); }
+});
+
+// ===== Bracket / Seeding Routes =====
+// حفظ توزيع الثوالث في دور الـ32 (JSON: { 'R32-03': 'فرنسا', ... })
+app.post('/admin/seeding-save', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const seeding = {};
+    for (const [key, val] of Object.entries(req.body)) {
+      if (key.startsWith('third_')) {
+        const slot = key.replace('third_', 'R32-');
+        if (val) seeding[slot] = val;
+      }
+    }
+    await db.saveRound32Seeding(seeding);
+    res.redirect('/dashboard?tab=seeding');
+  } catch (err) {
+    console.error('Seeding save error:', err);
+    res.redirect('/dashboard?tab=seeding');
+  }
+});
+
+// اعتماد دور الـ32
+app.post('/admin/confirm-round32', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await db.confirmRound32();
+    res.redirect('/dashboard?tab=seeding');
+  } catch (err) {
+    console.error('Confirm R32 error:', err.message);
+    res.redirect('/dashboard?tab=seeding');
+  }
+});
+
+// إعادة بناء الأدوار الإقصائية
+app.post('/admin/rebuild-knockout', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await db.rebuildKnockoutRounds();
+    res.redirect('/dashboard?tab=seeding');
+  } catch (err) {
+    console.error('Rebuild knockout error:', err);
+    res.redirect('/dashboard?tab=seeding');
+  }
 });
 
 // ===== 404 Handler =====

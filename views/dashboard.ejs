@@ -233,6 +233,7 @@
           <button class="db-tab <%= activeTab==='predictions'?'active':'' %>" onclick="dbTab('predictions',this)">التوقعات</button>
           <button class="db-tab <%= activeTab==='results'?'active':'' %>" onclick="dbTab('results',this)">النتائج</button>
           <button class="db-tab <%= activeTab==='rounds'?'active':'' %>" onclick="dbTab('rounds',this)">الجولات</button>
+          <button class="db-tab <%= activeTab==='seeding'?'active':'' %>" onclick="dbTab('seeding',this)">تسكين دور الـ32</button>
           <button class="db-tab <%= activeTab==='leaderboard'?'active':'' %>" onclick="dbTab('leaderboard',this)">الترتيب</button>
           <button class="db-tab <%= activeTab==='news'?'active':'' %>" onclick="dbTab('news',this)">الأخبار</button>
           <button class="db-tab <%= activeTab==='comments'?'active':'' %>" onclick="dbTab('comments',this)">التعليقات</button>
@@ -629,6 +630,194 @@
               <% }) %>
             </div>
           </div>
+        </div>
+
+        <!-- ===== TAB: تسكين دور الـ32 ===== -->
+        <div class="db-panel <%= activeTab==='seeding'?'active':'' %>" id="panel-seeding">
+
+          <% if (!bracketStatus || !bracketStatus.confirmed) { %>
+
+            <!-- ---- مرحلة التسكين ---- -->
+            <div class="card section-card">
+              <div style="font-weight:800;font-size:1rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span>جدول دور الـ 32 — تسكين أفضل 8 ثوالث</span>
+                <% if (bestThirds && bestThirds.length > 0) { %>
+                  <span style="font-size:0.75rem;color:var(--text-secondary);background:var(--bg);padding:4px 10px;border-radius:20px;">
+                    أفضل 8 ثوالث متاحة
+                  </span>
+                <% } %>
+              </div>
+
+              <% if (seedingPairings && seedingPairings.length > 0) { %>
+                <form method="POST" action="/admin/seeding-save" id="seeding-form">
+                  <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                      <thead>
+                        <tr style="background:var(--bg);">
+                          <th style="padding:10px 12px;text-align:right;">#</th>
+                          <th style="padding:10px 12px;text-align:right;">المباراة</th>
+                          <th style="padding:10px 12px;text-align:right;">الفريق A</th>
+                          <th style="padding:10px 12px;text-align:right;">الفريق B</th>
+                          <th style="padding:10px 12px;text-align:right;">يتأهل إلى</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <% seedingPairings.forEach(function(p, i) { %>
+                        <tr style="border-bottom:1px solid var(--border);">
+                          <td style="padding:10px 12px;"><%= i + 1 %></td>
+                          <td style="padding:10px 12px;font-weight:700;font-size:0.8rem;color:var(--primary);"><%= p.label %></td>
+                          <td style="padding:10px 12px;">
+                            <% if (p.teamA) { %>
+                              <span style="display:inline-flex;align-items:center;gap:6px;">
+                                <img src="/flags/<%= teamFlags[p.teamA]||'unknown' %>.png" onerror="this.src='/flags/unknown.png'" style="width:18px;height:12px;border-radius:2px;">
+                                <%= p.teamA %>
+                                <% if (p.teamA_auto) { %><span style="font-size:0.65rem;color:#16a34a;">(تلقائي)</span><% } %>
+                              </span>
+                            <% } else { %>
+                              <span style="color:var(--text-secondary);">—</span>
+                            <% } %>
+                          </td>
+                          <td style="padding:10px 12px;">
+                            <% if (p.is_third_slot) { %>
+                              <!-- Dropdown لأفضل الثوالث -->
+                              <select name="third_<%= p.label.replace('R32-','') %>" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:0.8rem;background:var(--surface);min-width:130px;">
+                                <option value="">اختر الثالث</option>
+                                <% if (p.available_thirds) { p.available_thirds.forEach(function(t) { %>
+                                  <option value="<%= t.name %>" <%= p.teamB === t.name ? 'selected' : '' %>><%= t.name %> (<%= t.points %> ن)</option>
+                                <% }); } %>
+                              </select>
+                            <% } else if (p.teamB) { %>
+                              <span style="display:inline-flex;align-items:center;gap:6px;">
+                                <img src="/flags/<%= teamFlags[p.teamB]||'unknown' %>.png" onerror="this.src='/flags/unknown.png'" style="width:18px;height:12px;border-radius:2px;">
+                                <%= p.teamB %>
+                                <% if (p.teamB_auto) { %><span style="font-size:0.65rem;color:#16a34a;">(تلقائي)</span><% } %>
+                              </span>
+                            <% } else { %>
+                              <span style="color:var(--text-secondary);">—</span>
+                            <% } %>
+                          </td>
+                          <td style="padding:10px 12px;font-size:0.78rem;color:var(--text-secondary);">
+                            <% if (p.slot.winnerTo) { %><%= p.slot.winnerTo %> (<%= p.slot.side === 'teamA' ? 'طرف أول' : 'طرف ثاني' %>)<% } %>
+                          </td>
+                        </tr>
+                        <% }); %>
+                      </tbody>
+                    </table>
+                  </div>
+                </form>
+
+                  <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+                    <button type="submit" form="seeding-form" class="db-btn db-btn-approve" style="padding:10px 24px;font-size:0.9rem;">
+                      حفظ التوزيع
+                    </button>
+                    <% if (bestThirds && bestThirds.length > 0) { %>
+                      <form method="POST" action="/admin/confirm-round32" style="margin:0;display:inline;" onsubmit="return confirm('تأكيد اعتماد دور الـ32؟\n\nبعد الاعتماد:\n• سيتم حفظ جميع مواجهات دور الـ32\n• ستنتقل الفرق تلقائياً في الأدوار التالية\n• لا يمكن تعديل توزيع الثوالث بعد الاعتماد')">
+                        <button type="submit" class="db-btn" style="padding:10px 24px;font-size:0.9rem;background:#7c3aed;color:#fff;border:none;border-radius:10px;cursor:pointer;">
+                          اعتماد دور الـ 32
+                        </button>
+                      </form>
+                    <% } %>
+                  </div>
+
+                <!-- قائمة أفضل 8 ثوالث -->
+                <% if (bestThirds && bestThirds.length > 0) { %>
+                <div style="margin-top:20px;padding:14px;background:var(--bg);border-radius:10px;">
+                  <div style="font-weight:700;font-size:0.85rem;margin-bottom:10px;">أفضل 8 ثوالث (<%= bestThirds.length %>):</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <% bestThirds.forEach(function(t, i) { %>
+                    <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface);border-radius:20px;font-size:0.8rem;border:1px solid var(--border);">
+                      <img src="/flags/<%= teamFlags[t.name]||'unknown' %>.png" onerror="this.src='/flags/unknown.png'" style="width:16px;height:11px;border-radius:2px;">
+                      <%= i + 1 %>. <%= t.name %>
+                      <span style="color:var(--text-secondary);font-size:0.7rem;"><%= t.points %> ن</span>
+                    </span>
+                    <% }); %>
+                  </div>
+                </div>
+                <% } %>
+
+              <% } else { %>
+                <div style="padding:20px;text-align:center;color:var(--text-secondary);">
+                  <% if (!bestThirds || bestThirds.length === 0) { %>
+                    لم تكتمل مباريات دور المجموعات بعد. يجب احتساب ترتيب المجموعات أولاً.
+                  <% } else { %>
+                    لا توجد مباريات دور الـ32. يرجى التأكد من إنشاء المباريات.
+                  <% } %>
+                </div>
+              <% } %>
+            </div>
+
+          <% } else { %>
+
+            <!-- ---- تم الاعتماد ---- -->
+            <div class="card section-card">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                <span style="background:#16a34a;color:#fff;padding:4px 14px;border-radius:20px;font-size:0.8rem;font-weight:700;">✓ تم اعتماد دور الـ32</span>
+                <span style="font-size:0.85rem;color:var(--text-secondary);">جميع المواجهات والمسارات محفوظة</span>
+              </div>
+
+              <!-- مسار الأدوار الإقصائية -->
+              <% if (bracketStatus && bracketStatus.rounds) { %>
+                <% var roundKeys = Object.keys(bracketStatus.rounds).sort(); %>
+                <% roundKeys.forEach(function(rk) { %>
+                  <% var rd = bracketStatus.rounds[rk]; %>
+                  <div style="margin-bottom:20px;">
+                    <div style="font-weight:700;font-size:0.9rem;margin-bottom:10px;color:var(--primary);"><%= rd.name %></div>
+                    <div style="overflow-x:auto;">
+                      <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                        <thead>
+                          <tr style="background:var(--bg);">
+                            <th style="padding:8px 10px;text-align:right;">المباراة</th>
+                            <th style="padding:8px 10px;text-align:right;">الفريق A</th>
+                            <th style="padding:8px 10px;text-align:right;">الفريق B</th>
+                            <th style="padding:8px 10px;text-align:right;">الفائز</th>
+                            <th style="padding:8px 10px;text-align:right;">يتأهل إلى</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <% rd.matches.forEach(function(m) { %>
+                          <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:8px 10px;font-weight:700;font-size:0.75rem;"><%= m.match_label || '—' %></td>
+                            <td style="padding:8px 10px;">
+                              <img src="/flags/<%= teamFlags[m.teamA]||'unknown' %>.png" onerror="this.src='/flags/unknown.png'" style="width:16px;height:11px;border-radius:2px;">
+                              <%= m.teamA %>
+                            </td>
+                            <td style="padding:8px 10px;">
+                              <img src="/flags/<%= teamFlags[m.teamB]||'unknown' %>.png" onerror="this.src='/flags/unknown.png'" style="width:16px;height:11px;border-radius:2px;">
+                              <%= m.teamB %>
+                            </td>
+                            <td style="padding:8px 10px;">
+                              <% if (m.actual_winner) { %>
+                                <span style="color:#16a34a;font-weight:700;"><%= m.actual_winner %></span>
+                              <% } else { %>
+                                <span style="color:var(--text-secondary);">—</span>
+                              <% } %>
+                            </td>
+                            <td style="padding:8px 10px;font-size:0.75rem;color:var(--text-secondary);">
+                              <% if (m.winner_to_match_id) { %>
+                                <%= m.winner_to_side === 'teamA' ? 'طرف أول' : 'طرف ثاني' %> ← م<%= m.winner_to_match_id %>
+                              <% } else { %>
+                                —
+                              <% } %>
+                            </td>
+                          </tr>
+                          <% }); %>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                <% }); %>
+              <% } %>
+
+              <div style="margin-top:16px;">
+                <form method="POST" action="/admin/rebuild-knockout" style="margin:0;" onsubmit="return confirm('تحذير! إعادة بناء الأدوار الإقصائية:\n\n• سيتم حذف جميع نتائج المباريات الإقصائية\n• سيتم إعادة تعيين جميع المواجهات إلى الوضع الافتراضي\n• سيتم إلغاء اعتماد دور الـ32\n• لن تتأثر مباريات المجموعات أو التوقعات\n\nهل أنت متأكد؟')">
+                  <button type="submit" class="db-btn" style="padding:10px 20px;font-size:0.85rem;background:#dc2626;color:#fff;border:none;border-radius:10px;cursor:pointer;">
+                    إعادة بناء الأدوار الإقصائية
+                  </button>
+                </form>
+              </div>
+            </div>
+
+          <% } %>
         </div>
 
         <!-- ===== TAB: الترتيب ===== -->

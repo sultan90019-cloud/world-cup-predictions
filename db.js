@@ -27,6 +27,53 @@ const GROUPS = {
   'المجموعة L': ['إنجلترا', 'كرواتيا', 'غانا', 'بنما']
 };
 
+// الجدول الرسمي لمسارات الأدوار الإقصائية — ثابت ولا يتغير
+// teamA_slot_type / teamB_slot_type: 'group_first', 'group_second', 'best_third', 'winner_from'
+// best_third_index: 1-8 معناه خانة ثالث يتم تسكينها يدوياً
+const BRACKET_SLOTS = {
+  round4: [ // دور الـ 32 — 16 مباراة
+    { label: 'R32-01', teamA: { type: 'group_second', group: 'A' }, teamB: { type: 'group_second', group: 'B' }, winnerTo: 'R16-01', side: 'teamA' },
+    { label: 'R32-02', teamA: { type: 'group_first', group: 'C' }, teamB: { type: 'group_second', group: 'F' }, winnerTo: 'R16-01', side: 'teamB' },
+    { label: 'R32-03', teamA: { type: 'group_first', group: 'E' }, teamB: { type: 'best_third', index: 1 }, winnerTo: 'R16-03', side: 'teamA' },
+    { label: 'R32-04', teamA: { type: 'group_first', group: 'F' }, teamB: { type: 'group_second', group: 'C' }, winnerTo: 'R16-03', side: 'teamB' },
+    { label: 'R32-05', teamA: { type: 'group_second', group: 'E' }, teamB: { type: 'group_second', group: 'I' }, winnerTo: 'R16-02', side: 'teamA' },
+    { label: 'R32-06', teamA: { type: 'group_first', group: 'I' }, teamB: { type: 'best_third', index: 2 }, winnerTo: 'R16-02', side: 'teamB' },
+    { label: 'R32-07', teamA: { type: 'group_first', group: 'A' }, teamB: { type: 'best_third', index: 3 }, winnerTo: 'R16-04', side: 'teamA' },
+    { label: 'R32-08', teamA: { type: 'group_first', group: 'L' }, teamB: { type: 'best_third', index: 4 }, winnerTo: 'R16-04', side: 'teamB' },
+    { label: 'R32-09', teamA: { type: 'group_first', group: 'G' }, teamB: { type: 'best_third', index: 5 }, winnerTo: 'R16-05', side: 'teamA' },
+    { label: 'R32-10', teamA: { type: 'group_first', group: 'D' }, teamB: { type: 'best_third', index: 6 }, winnerTo: 'R16-05', side: 'teamB' },
+    { label: 'R32-11', teamA: { type: 'group_first', group: 'H' }, teamB: { type: 'group_second', group: 'J' }, winnerTo: 'R16-06', side: 'teamA' },
+    { label: 'R32-12', teamA: { type: 'group_second', group: 'K' }, teamB: { type: 'group_second', group: 'L' }, winnerTo: 'R16-06', side: 'teamB' },
+    { label: 'R32-13', teamA: { type: 'group_first', group: 'B' }, teamB: { type: 'best_third', index: 7 }, winnerTo: 'R16-07', side: 'teamA' },
+    { label: 'R32-14', teamA: { type: 'group_second', group: 'D' }, teamB: { type: 'group_second', group: 'G' }, winnerTo: 'R16-07', side: 'teamB' },
+    { label: 'R32-15', teamA: { type: 'group_first', group: 'J' }, teamB: { type: 'group_second', group: 'H' }, winnerTo: 'R16-08', side: 'teamA' },
+    { label: 'R32-16', teamA: { type: 'group_first', group: 'K' }, teamB: { type: 'best_third', index: 8 }, winnerTo: 'R16-08', side: 'teamB' },
+  ],
+  round5: [ // دور الـ 16
+    { label: 'R16-01', winnerTo: 'QF-01', side: 'teamA' },
+    { label: 'R16-02', winnerTo: 'QF-01', side: 'teamB' },
+    { label: 'R16-03', winnerTo: 'QF-02', side: 'teamA' },
+    { label: 'R16-04', winnerTo: 'QF-02', side: 'teamB' },
+    { label: 'R16-05', winnerTo: 'QF-03', side: 'teamA' },
+    { label: 'R16-06', winnerTo: 'QF-03', side: 'teamB' },
+    { label: 'R16-07', winnerTo: 'QF-04', side: 'teamA' },
+    { label: 'R16-08', winnerTo: 'QF-04', side: 'teamB' },
+  ],
+  round6: [ // ربع النهائي
+    { label: 'QF-01', winnerTo: 'SF-01', side: 'teamA' },
+    { label: 'QF-02', winnerTo: 'SF-01', side: 'teamB' },
+    { label: 'QF-03', winnerTo: 'SF-02', side: 'teamA' },
+    { label: 'QF-04', winnerTo: 'SF-02', side: 'teamB' },
+  ],
+  round7: [ // نصف النهائي
+    { label: 'SF-01', winnerTo: 'FINAL', side: 'teamA' },
+    { label: 'SF-02', winnerTo: 'FINAL', side: 'teamB' },
+  ],
+  round8: [ // النهائي
+    { label: 'FINAL', winnerTo: null, side: null },
+  ],
+};
+
 function generateFixtures() {
   // جدول كأس العالم 2026 الرسمي — كل التواريخ والأوقات بتوقيت ET محوّل لـ UTC (+4 ساعات)
   // المصدر: ESPN / FIFA الرسمي
@@ -289,6 +336,30 @@ async function init() {
     await client.query("ALTER TABLE predictions ADD COLUMN IF NOT EXISTS penalty_winner VARCHAR(100)");
     await client.query("ALTER TABLE matches ADD COLUMN IF NOT EXISTS penalty_winner VARCHAR(100)");
 
+    // Safe migration: bracket path columns for knockout
+    await client.query("ALTER TABLE matches ADD COLUMN IF NOT EXISTS match_label VARCHAR(20)");
+    await client.query("ALTER TABLE matches ADD COLUMN IF NOT EXISTS winner_to_match_id INTEGER REFERENCES matches(id)");
+    await client.query("ALTER TABLE matches ADD COLUMN IF NOT EXISTS winner_to_side VARCHAR(10)");
+
+    // Knockout bracket slots table — الثابت الرسمي
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS knockout_bracket_slots (
+        id SERIAL PRIMARY KEY,
+        match_label VARCHAR(20) NOT NULL UNIQUE,
+        round INTEGER NOT NULL,
+        stage VARCHAR(100) NOT NULL DEFAULT '',
+        match_order INTEGER NOT NULL DEFAULT 0,
+        teamA_slot_type VARCHAR(30) NOT NULL DEFAULT '',
+        teamA_slot_value VARCHAR(30) DEFAULT '',
+        teamB_slot_type VARCHAR(30) NOT NULL DEFAULT '',
+        teamB_slot_value VARCHAR(30) DEFAULT '',
+        winner_to_match_label VARCHAR(20),
+        winner_to_side VARCHAR(10),
+        start_at TIMESTAMP,
+        venue VARCHAR(200) DEFAULT ''
+      )
+    `);
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS challenge_picks (
         id SERIAL PRIMARY KEY,
@@ -406,6 +477,19 @@ async function init() {
 
     await client.query('COMMIT');
     console.log('Database initialized successfully');
+
+    // تهيئة مسارات الأدوار الإقصائية (خارج الـ transaction لأن initBracketPaths يستخدم pool.query)
+    try {
+      const bracketInitCheck = await pool.query("SELECT value FROM settings WHERE key = 'bracket_paths_initialized'");
+      if (bracketInitCheck.rows.length === 0) {
+        await initBracketPaths();
+        await pool.query("INSERT INTO settings (key, value) VALUES ('bracket_paths_initialized', '1')");
+        console.log('Migration: bracket paths initialized');
+      }
+    } catch (err) {
+      console.error('Bracket paths init error:', err.message || err);
+    }
+
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error initializing database:', error);
@@ -983,7 +1067,10 @@ function normalizeMatch(row) {
     round: row.round,
     created_at: row.created_at,
     actual_winner: row.actual_winner || row.actualwinner || null,
-    penalty_winner: row.penalty_winner || row.penaltywinner || null
+    penalty_winner: row.penalty_winner || row.penaltywinner || null,
+    match_label: row.match_label || null,
+    winner_to_match_id: row.winner_to_match_id || null,
+    winner_to_side: row.winner_to_side || null
   };
 }
 
@@ -1186,7 +1273,16 @@ module.exports = {
   deleteComment,
   advanceKnockoutTeams,
   autoCalculateChallengeResults,
-  recalculateAllPredictionPoints
+  recalculateAllPredictionPoints,
+  // Bracket system
+  initBracketPaths,
+  getBestThirds,
+  getRound32Seeding,
+  saveRound32Seeding,
+  getRound32Pairings,
+  confirmRound32,
+  getKnockoutBracketStatus,
+  rebuildKnockoutRounds
 };
 
 // ===== AUTO CHALLENGE RESULTS (استخراج المنتخبات المتأهلة تلقائياً) =====
@@ -1241,6 +1337,18 @@ async function advanceKnockoutTeams() {
   try {
     const allMatches = await getMatches();
 
+    // تحقق هل تم اعتماد دور الـ32 (النظام الجديد بمسارات الأدوار)
+    const r32seeded = allMatches.filter(m => m.round === 4 && m.match_label !== null && m.match_label !== undefined);
+    if (r32seeded.length > 0) {
+      // استخدام مسارات الأدوار الإقصائية المخزنة
+      await advanceWinnersByBracket(allMatches, 4); // دور 32 → دور 16
+      await advanceWinnersByBracket(allMatches, 5); // دور 16 → ربع النهائي
+      await advanceWinnersByBracket(allMatches, 6); // ربع → نصف النهائي
+      await advanceWinnersByBracket(allMatches, 7); // نصف → النهائي
+      return;
+    }
+
+    // النظام القديم كاحتياطي (للبطولة الحالية قبل تسكين دور الـ32)
     // تحقق هل دور المجموعات اكتمل
     const groupMatches = allMatches.filter(m => m.round >= 1 && m.round <= 3);
     const completedGroupMatches = groupMatches.filter(m => m.actual_scoreA !== null && m.actual_scoreB !== null);
@@ -1249,7 +1357,7 @@ async function advanceKnockoutTeams() {
       await advanceToRound32(allMatches);
     }
 
-    // تقدم الفائزين في كل دور إقصائي
+    // تقدم الفائزين في كل دور إقصائي (القديم)
     await advanceWinnersInRound(allMatches, 4, 5); // دور 32 → دور 16
     await advanceWinnersInRound(allMatches, 5, 6); // دور 16 → ربع النهائي
     await advanceWinnersInRound(allMatches, 6, 7); // ربع → نصف النهائي
@@ -1404,12 +1512,34 @@ async function advanceWinnersInRound(allMatches, fromRound, toRound) {
   }
 }
 
+// ===== التقدم عبر مسار الأدوار الإقصائية (النظام الجديد) =====
+// يستخدم winner_to_match_id و winner_to_side المخزنين في جدول matches
+async function advanceWinnersByBracket(allMatches, fromRound) {
+  const fromMatches = allMatches.filter(m => m.round === fromRound && m.winner_to_match_id);
+  for (const match of fromMatches) {
+    const winner = getMatchWinner(match);
+    if (!winner) continue;
+    const toMatch = allMatches.find(m => m.id === match.winner_to_match_id);
+    if (!toMatch) continue;
+    if (match.winner_to_side === 'teamA') {
+      if (toMatch.teamA !== winner) {
+        await pool.query('UPDATE matches SET teamA = $1 WHERE id = $2', [winner, toMatch.id]);
+      }
+    } else if (match.winner_to_side === 'teamB') {
+      if (toMatch.teamB !== winner) {
+        await pool.query('UPDATE matches SET teamB = $1 WHERE id = $2', [winner, toMatch.id]);
+      }
+    }
+  }
+}
+
 function getMatchWinner(match) {
   if (match.actual_scoreA === null || match.actual_scoreB === null) return null;
   if (match.actual_scoreA > match.actual_scoreB) return match.teamA;
   if (match.actual_scoreB > match.actual_scoreA) return match.teamB;
-  // تعادل في الأدوار الإقصائية - نرجع الفريق A كـ default (الأدمن يقدر يعدل يدوي)
-  return match.teamA;
+  // تعادل — الفائز بركلات الترجيح (يجب اختياره من الأدمن)
+  if (match.penalty_winner) return match.penalty_winner;
+  return null; // تعادل بدون اختيار فائز ركلات = لم يُحسم بعد
 }
 
 async function initNewsTable() {
@@ -1616,4 +1746,306 @@ async function showComment(commentId) {
 
 async function deleteComment(commentId) {
   await pool.query('DELETE FROM news_comments WHERE id = $1', [commentId]);
+}
+
+// ====================================================================
+// BRACKET PATHS — مسارات الأدوار الإقصائية
+// ====================================================================
+
+// ربط جميع مباريات الأدوار الإقصائية بمساراتها في جدول matches
+async function initBracketPaths() {
+  // إنشاء سجلات في knockout_bracket_slots إن لم تكن موجودة
+  const existingSlots = await pool.query('SELECT COUNT(*) FROM knockout_bracket_slots');
+  if (parseInt(existingSlots.rows[0].count) === 0) {
+    for (let r = 4; r <= 8; r++) {
+      const slots = BRACKET_SLOTS['round' + r];
+      const stageMap = { 4: 'دور الـ 32', 5: 'دور الـ 16', 6: 'ربع النهائي', 7: 'نصف النهائي', 8: 'النهائي' };
+      for (let i = 0; i < slots.length; i++) {
+        const s = slots[i];
+        const teamA_type = s.teamA ? s.teamA.type : '';
+        const teamA_val = s.teamA ? (s.teamA.group || s.teamA.index || '') : '';
+        const teamB_type = s.teamB ? s.teamB.type : '';
+        const teamB_val = s.teamB ? (s.teamB.group || s.teamB.index || '') : '';
+        await pool.query(
+          `INSERT INTO knockout_bracket_slots (match_label, round, stage, match_order,
+            teamA_slot_type, teamA_slot_value, teamB_slot_type, teamB_slot_value,
+            winner_to_match_label, winner_to_side)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+           ON CONFLICT (match_label) DO NOTHING`,
+          [s.label, r, stageMap[r], i + 1,
+           teamA_type, String(teamA_val), teamB_type, String(teamB_val),
+           s.winnerTo || null, s.side || null]
+        );
+      }
+    }
+  }
+
+  // ربط مباريات Round 4-8 الموجودة بمساراتها
+  for (let r = 4; r <= 8; r++) {
+    const matches = await pool.query(
+      'SELECT * FROM matches WHERE round = $1 ORDER BY id', [r]
+    );
+    const slots = BRACKET_SLOTS['round' + r];
+    for (let i = 0; i < matches.rows.length && i < slots.length; i++) {
+      const m = matches.rows[i];
+      const s = slots[i];
+      // تعيين match_label
+      if (!m.match_label) {
+        await pool.query('UPDATE matches SET match_label = $1 WHERE id = $2', [s.label, m.id]);
+      }
+    }
+  }
+
+  // المرحلة 2: ربط winner_to_match_id (بعد تعيين جميع match_labels)
+  for (let r = 4; r <= 8; r++) {
+    const matches = await pool.query(
+      'SELECT * FROM matches WHERE round = $1 ORDER BY id', [r]
+    );
+    const slots = BRACKET_SLOTS['round' + r];
+    for (let i = 0; i < matches.rows.length && i < slots.length; i++) {
+      const m = matches.rows[i];
+      const s = slots[i];
+      // تعيين winner_to_match_id و winner_to_side
+      if (s.winnerTo) {
+        const nextMatch = await pool.query(
+          'SELECT id FROM matches WHERE match_label = $1 LIMIT 1', [s.winnerTo]
+        );
+        if (nextMatch.rows.length > 0) {
+          await pool.query(
+            'UPDATE matches SET winner_to_match_id = $1, winner_to_side = $2 WHERE id = $3 AND winner_to_match_id IS NULL',
+            [nextMatch.rows[0].id, s.side, m.id]
+          );
+        }
+      }
+    }
+  }
+}
+
+// حساب أفضل 8 ثوالث
+async function getBestThirds() {
+  const allMatches = await getMatches();
+  const standings = getGroupStandingsCalc(allMatches);
+  const groupNames = Object.keys(GROUPS);
+  // الثالث من كل مجموعة
+  const allThirds = groupNames.map(g => {
+    const s = standings[g];
+    const third = s[2] ? { ...s[2], group: g.replace('المجموعة ', '') } : null;
+    return third;
+  }).filter(t => t && t.name);
+  // ترتيب: نقاط > فارق > أهداف
+  const bestThirds = allThirds.sort((a, b) => b.points - a.points || b.gd - a.gd || b.scored - a.scored).slice(0, 8);
+  return bestThirds;
+}
+
+// الحصول على توزيع دور الـ32 الحالي (المحفوظ في settings)
+async function getRound32Seeding() {
+  const result = await pool.query("SELECT value FROM settings WHERE key = 'round32_seeding'");
+  if (result.rows.length === 0) return null;
+  try { return JSON.parse(result.rows[0].value); } catch (e) { return null; }
+}
+
+// حفظ توزيع الثوالث (يسكن الأدمن المنتخبات في الخانات)
+async function saveRound32Seeding(seedingData) {
+  // seedingData: { 'R32-03': 'فرنسا', 'R32-06': 'البرازيل', ... }
+  const bestThirds = await getBestThirds();
+  const validTeams = bestThirds.map(t => t.name);
+  // تحقق: كل القيم من أفضل 8 ثوالث
+  for (const [slot, team] of Object.entries(seedingData)) {
+    if (!validTeams.includes(team)) {
+      throw new Error('الفريق ' + team + ' ليس من أفضل 8 ثوالث');
+    }
+  }
+  // تحقق: لا تكرار
+  const teams = Object.values(seedingData);
+  if (new Set(teams).size !== teams.length) {
+    throw new Error('لا يمكن اختيار نفس المنتخب أكثر من مرة');
+  }
+  // تحقق: 8 خانات
+  const thirdSlots = BRACKET_SLOTS.round4.filter(s => s.teamB && s.teamB.type === 'best_third');
+  if (Object.keys(seedingData).length !== thirdSlots.length) {
+    throw new Error('يجب تسكين جميع خانات الثوالث (' + thirdSlots.length + ' خانات)');
+  }
+  await pool.query(
+    "INSERT INTO settings (key, value) VALUES ('round32_seeding', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+    [JSON.stringify(seedingData)]
+  );
+}
+
+// الحصول على جميع مواجهات دور الـ32 مع معلومات التوزيع
+async function getRound32Pairings() {
+  // الحصول على أفضل 8 ثوالث
+  const bestThirds = await getBestThirds();
+  // الحصول على ترتيب المجموعات
+  const standingResult = await getGroupStandings();
+  const pos = {};
+  if (standingResult) {
+    for (const g of standingResult) {
+      pos[g.name] = { first: g.teams[0]?.name, second: g.teams[1]?.name, third: g.teams[2]?.name };
+    }
+  }
+  // الحصول على التوزيع الحالي (إن وجد)
+  const seeding = await getRound32Seeding();
+
+  // بناء كل مواجهة
+  const pairings = [];
+  const thirdSlots = BRACKET_SLOTS.round4.filter(s => s.teamB && s.teamB.type === 'best_third');
+  let thirdIndex = 0;
+
+  for (const slot of BRACKET_SLOTS.round4) {
+    const p = { label: slot.label, slot, teamA: null, teamB: null, teamA_auto: false, teamB_auto: false, is_third_slot: false };
+    // teamA
+    if (slot.teamA.type === 'group_first') {
+      const gName = 'المجموعة ' + slot.teamA.group;
+      p.teamA = pos[gName]?.first || null;
+      p.teamA_auto = true;
+    } else if (slot.teamA.type === 'group_second') {
+      const gName = 'المجموعة ' + slot.teamA.group;
+      p.teamA = pos[gName]?.second || null;
+      p.teamA_auto = true;
+    }
+    // teamB
+    if (slot.teamB.type === 'group_first') {
+      const gName = 'المجموعة ' + slot.teamB.group;
+      p.teamB = pos[gName]?.first || null;
+      p.teamB_auto = true;
+    } else if (slot.teamB.type === 'group_second') {
+      const gName = 'المجموعة ' + slot.teamB.group;
+      p.teamB = pos[gName]?.second || null;
+      p.teamB_auto = true;
+    } else if (slot.teamB.type === 'best_third') {
+      const seeded = seeding ? seeding[slot.label] : null;
+      p.teamB = seeded || null;
+      p.is_third_slot = true;
+      p.third_index = thirdIndex;
+      p.available_thirds = bestThirds;
+      thirdIndex++;
+    }
+    pairings.push(p);
+  }
+  return pairings;
+}
+
+// اعتماد دور الـ32 (بعد تسكين الثوالث)
+async function confirmRound32() {
+  const seeding = await getRound32Seeding();
+  if (!seeding) throw new Error('لم يتم تسكين الثوالث بعد');
+
+  const standingResult = await getGroupStandings();
+  if (!standingResult) throw new Error('لم يتم احتساب ترتيب المجموعات بعد');
+
+  const pos = {};
+  for (const g of standingResult) {
+    pos[g.name] = { first: g.teams[0]?.name, second: g.teams[1]?.name, third: g.teams[2]?.name };
+  }
+
+  // الحصول على مباريات دور الـ32
+  const r32matches = await pool.query('SELECT * FROM matches WHERE round = 4 ORDER BY id');
+  const matches = r32matches.rows;
+
+  if (matches.length !== 16) throw new Error('عدد مباريات دور الـ32 غير صحيح');
+  if (matches.length === 0) throw new Error('لا توجد مباريات دور الـ32');
+
+  // لك مباراة، حل teamA و teamB
+  for (let i = 0; i < matches.length; i++) {
+    const slot = BRACKET_SLOTS.round4[i];
+    if (!slot) continue;
+    const match = matches[i];
+
+    let teamA = null, teamB = null;
+
+    // حل teamA
+    if (slot.teamA.type === 'group_first') {
+      teamA = pos['المجموعة ' + slot.teamA.group]?.first;
+    } else if (slot.teamA.type === 'group_second') {
+      teamA = pos['المجموعة ' + slot.teamA.group]?.second;
+    }
+
+    // حل teamB
+    if (slot.teamB.type === 'group_first') {
+      teamB = pos['المجموعة ' + slot.teamB.group]?.first;
+    } else if (slot.teamB.type === 'group_second') {
+      teamB = pos['المجموعة ' + slot.teamB.group]?.second;
+    } else if (slot.teamB.type === 'best_third') {
+      teamB = seeding[slot.label];
+    }
+
+    if (!teamA) throw new Error('لم يتم تحديد الفريق A للمباراة ' + slot.label);
+    if (!teamB) throw new Error('لم يتم تحديد الفريق B للمباراة ' + slot.label);
+
+    // تحديث المباراة
+    await pool.query(
+      'UPDATE matches SET teamA = $1, teamB = $2, match_label = $3 WHERE id = $4',
+      [teamA, teamB, slot.label, match.id]
+    );
+  }
+
+  // تعيين مسارات الأدوار (winner_to_match_id, winner_to_side) لجميع مباريات الأدوار الإقصائية
+  await initBracketPaths();
+
+  // حفظ علامة أن دور الـ32 معتمد
+  await pool.query(
+    "INSERT INTO settings (key, value) VALUES ('round32_confirmed', '1') ON CONFLICT (key) DO UPDATE SET value = '1'"
+  );
+
+  // إعادة احتساب نقاط التوقعات
+  await recalculateAllPredictionPoints();
+}
+
+// الحصول على حالة المسار الإقصائي
+async function getKnockoutBracketStatus() {
+  const result = await pool.query("SELECT value FROM settings WHERE key = 'round32_confirmed'");
+  const confirmed = result.rows.length > 0 && result.rows[0].value === '1';
+  const matches = await pool.query(
+    'SELECT id, round, match_label, teamA, teamB, actual_scoreA, actual_scoreB, actual_winner, penalty_winner, winner_to_match_id, winner_to_side, stage FROM matches WHERE round >= 4 ORDER BY round, id'
+  );
+  const roundNames = { 4: 'دور الـ 32', 5: 'دور الـ 16', 6: 'ربع النهائي', 7: 'نصف النهائي', 8: 'النهائي' };
+  const rounds = {};
+  for (const m of matches.rows) {
+    const r = m.round;
+    if (!rounds[r]) rounds[r] = { round: r, name: roundNames[r] || '', matches: [] };
+    // حساب الفائز
+    let winner = m.actual_winner || null;
+    if (!winner && m.actual_scorea != null && m.actual_scoreb != null) {
+      if (m.actual_scorea > m.actual_scoreb) winner = m.teama || m.teamA;
+      else if (m.actual_scoreb > m.actual_scorea) winner = m.teamb || m.teamB;
+      else if (m.penalty_winner) winner = m.penalty_winner;
+    }
+    rounds[r].matches.push({
+      id: m.id,
+      match_label: m.match_label,
+      teamA: m.teama || m.teamA,
+      teamB: m.teamb || m.teamB,
+      actual_winner: winner,
+      penalty_winner: m.penalty_winner,
+      winner_to_match_id: m.winner_to_match_id,
+      winner_to_side: m.winner_to_side,
+      stage: m.stage
+    });
+  }
+  return { confirmed, rounds };
+}
+
+// إعادة بناء الأدوار الإقصائية بالكامل
+async function rebuildKnockoutRounds() {
+  // حذف علامة الاعتماد
+  await pool.query("DELETE FROM settings WHERE key = 'round32_confirmed'");
+  await pool.query("DELETE FROM settings WHERE key = 'round32_seeding'");
+
+  // إعادة تعيين مباريات الأدوار الإقصائية إلى القيم الافتراضية من generateFixtures
+  const fixtures = generateFixtures();
+  const knockoutFixtures = fixtures.filter(f => f.round >= 4);
+  const existingMatches = await pool.query('SELECT id, round, teamA, teamB, start_at FROM matches WHERE round >= 4 ORDER BY id');
+  const existing = existingMatches.rows;
+
+  for (let i = 0; i < knockoutFixtures.length && i < existing.length; i++) {
+    const f = knockoutFixtures[i];
+    const m = existing[i];
+    await pool.query(
+      'UPDATE matches SET teamA = $1, teamB = $2, match_label = NULL, winner_to_match_id = NULL, winner_to_side = NULL, actual_scoreA = NULL, actual_scoreB = NULL, actual_winner = NULL, penalty_winner = NULL WHERE id = $3',
+      [f.teamA, f.teamB, m.id]
+    );
+  }
+
+  // حذف وحدة مسار المباراة التالية إذا كانت قد أنشأت مباريات وهمية
+  console.log('Knockout rounds rebuilt successfully');
 }
