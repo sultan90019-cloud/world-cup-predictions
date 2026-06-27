@@ -829,11 +829,12 @@ app.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
     const allComments = await db.getAllComments();
     const config = await db.getChallengeConfig();
     const challengePicks = await db.getAllChallengePicks();
+    const challengeResults = await db.getChallengeResults();
     const newsReadStats = {};
     for (const item of newsItems) {
       newsReadStats[item.id] = await db.getNewsReadStats(item.id);
     }
-    res.render('dashboard', { user: req.user, matches, leaderboard: leaderboardWithMissed, pendingUsers, allUsers, currentRound, publishedRounds, matchesByRound, visiblePredictions, hiddenPredictions, matchPredictions, groups, teamFlags, activeTab, newsItems, allComments, message: null, config, challengePicks, newsReadStats });
+    res.render('dashboard', { user: req.user, matches, leaderboard: leaderboardWithMissed, pendingUsers, allUsers, currentRound, publishedRounds, matchesByRound, visiblePredictions, hiddenPredictions, matchPredictions, groups, teamFlags, activeTab, newsItems, allComments, message: null, config, challengePicks, challengeResults, newsReadStats });
   } catch (err) {
     console.error('Dashboard error:', err);
     res.status(500).render('error', { message: 'حدث خطأ في تحميل لوحة التحكم' });
@@ -952,6 +953,13 @@ app.post('/admin/challenge/results', requireAuth, requireAdmin, adminLimiter, as
     const { round, teams } = req.body;
     const teamList = Array.isArray(teams) ? teams : (teams ? [teams] : []);
     await db.setChallengeResults(round, teamList);
+    res.redirect('/dashboard?tab=challenge');
+  } catch (err) { console.error(err); res.redirect('/dashboard?tab=challenge'); }
+});
+
+app.post('/admin/challenge/auto-results', requireAuth, requireAdmin, adminLimiter, async (req, res) => {
+  try {
+    await db.autoCalculateChallengeResults();
     res.redirect('/dashboard?tab=challenge');
   } catch (err) { console.error(err); res.redirect('/dashboard?tab=challenge'); }
 });

@@ -1136,8 +1136,52 @@ module.exports = {
   hideComment,
   showComment,
   deleteComment,
-  advanceKnockoutTeams
+  advanceKnockoutTeams,
+  autoCalculateChallengeResults
 };
+
+// ===== AUTO CHALLENGE RESULTS (استخراج المنتخبات المتأهلة تلقائياً) =====
+async function autoCalculateChallengeResults() {
+  try {
+    // تأكد من تقدم الفائزين في الأدوار الإقصائية أولاً
+    await advanceKnockoutTeams();
+    const allMatches = await getMatches();
+    const results = [];
+
+    // دور الـ8 (QF) = winners of round 6
+    const qfMatches = allMatches.filter(m => m.round === 6);
+    const qfWinners = qfMatches.map(getMatchWinner).filter(Boolean);
+    for (const team of qfWinners) results.push({ round: 'qf', team });
+
+    // دور الـ4 (SF) = winners of round 7
+    const sfMatches = allMatches.filter(m => m.round === 7);
+    const sfWinners = sfMatches.map(getMatchWinner).filter(Boolean);
+    for (const team of sfWinners) results.push({ round: 'sf', team });
+
+    // طرفا النهائي = teamA + teamB of round 8
+    const finalMatches = allMatches.filter(m => m.round === 8);
+    if (finalMatches.length > 0) {
+      const fm = finalMatches[0];
+      results.push({ round: 'finalists', team: fm.teamA });
+      results.push({ round: 'finalists', team: fm.teamB });
+    }
+
+    // البطل = winner of round 8
+    const finalWinner = finalMatches.map(getMatchWinner).filter(Boolean);
+    for (const team of finalWinner) results.push({ round: 'champion', team });
+
+    // تحديث challenge_results
+    await pool.query('DELETE FROM challenge_results');
+    for (const r of results) {
+      await pool.query('INSERT INTO challenge_results (round, team) VALUES ($1, $2)', [r.round, r.team]);
+    }
+
+    return results;
+  } catch (err) {
+    console.error('autoCalculateChallengeResults error:', err);
+    throw err;
+  }
+}
 
 // ===== AUTO KNOCKOUT ADVANCEMENT =====
 // نظام كأس العالم 2026 الرسمي
