@@ -267,6 +267,7 @@ app.get('/home', requireAuth, async (req, res) => {
       .filter(match => new Date(match.start_at) > Date.now())
       .slice(0, 5)
       .map(match => ({ ...match, locked: isPredictionLocked(match.start_at) }));
+    const publishedRounds = await db.getPublishedRounds();
     const leaderboard = await db.getLeaderboard();
     const userPredictions = await db.getUserPredictions(req.user.id);
     const predictionsCount = userPredictions.length;
@@ -275,7 +276,7 @@ app.get('/home', requireAuth, async (req, res) => {
       p.scoreA === p.actual_scoreA && p.scoreB === p.actual_scoreB
     ).length;
     const lockedMatchesForUser = matches.filter(m =>
-      isPredictionLocked(m.start_at) && m.id >= db.MISSED_PREDICTIONS_START_MATCH_ID
+      publishedRounds.includes(m.round) && isPredictionLocked(m.start_at) && m.id >= db.MISSED_PREDICTIONS_START_MATCH_ID
     );
     const lockedWithoutPrediction = lockedMatchesForUser.filter(m =>
       !userPredictions.some(p => p.match_id === m.id)
@@ -871,7 +872,7 @@ app.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
       console.error('Bracket data error:', err.message || err);
     }
 
-    res.render('dashboard', { user: req.user, matches, leaderboard: leaderboardWithMissed, pendingUsers, allUsers, currentRound, publishedRounds, matchesByRound, visiblePredictions, hiddenPredictions, matchPredictions, groups, teamFlags, activeTab, newsItems, allComments, message: null, config, challengePicks, challengeResults, newsReadStats, seedingPairings, bracketStatus, bestThirds, bracketVerification });
+    res.render('dashboard', { user: req.user, matches, leaderboard: leaderboardWithMissed, pendingUsers, allUsers, currentRound, publishedRounds, matchesByRound, visiblePredictions, hiddenPredictions, matchPredictions, groups, teamFlags, activeTab, newsItems, allComments, message: null, config, challengePicks, challengeResults, newsReadStats, seedingPairings, bracketStatus, bestThirds, bracketVerification, lockedPublishedMatchCount: lockedPublishedMatches ? lockedPublishedMatches.length : 0 });
   } catch (err) {
     console.error('Dashboard error:', err);
     res.status(500).render('error', { message: 'حدث خطأ في تحميل لوحة التحكم' });
