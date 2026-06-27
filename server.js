@@ -274,10 +274,15 @@ app.get('/home', requireAuth, async (req, res) => {
       p.actual_scoreA != null && p.actual_scoreB != null &&
       p.scoreA === p.actual_scoreA && p.scoreB === p.actual_scoreB
     ).length;
-    const lockedWithoutPrediction = matches.filter(m =>
-      isPredictionLocked(m.start_at) &&
+    const lockedMatchesForUser = matches.filter(m =>
+      isPredictionLocked(m.start_at) && m.id >= db.MISSED_PREDICTIONS_START_MATCH_ID
+    );
+    const lockedWithoutPrediction = lockedMatchesForUser.filter(m =>
       !userPredictions.some(p => p.match_id === m.id)
     ).length;
+    const commitmentRate = lockedMatchesForUser.length > 0
+      ? Math.round(((lockedMatchesForUser.length - lockedWithoutPrediction) / lockedMatchesForUser.length) * 100)
+      : 100;
     const userRank = leaderboard.findIndex(p => p.id === req.user.id) + 1;
     const userEntry = leaderboard.find(p => p.id === req.user.id) || null;
     const userPoints = userEntry?.total || 0;
@@ -289,7 +294,7 @@ app.get('/home', requireAuth, async (req, res) => {
     const teamFlags = await db.getTeamFlags();
     const newsItems = await db.getNews();
     const lastPrediction = await db.getLastPrediction(req.user.id);
-    res.render('home', { user: req.user, matches: predictionsWithLock, upcomingMatches, leaderboard, predictionsCount, correctPredictions, lockedWithoutPrediction, userRank, userPoints, userEntry, top3, allMatchesCount, lastMatch, lastPrediction, gapToFifth, teamFlags, newsItems });
+    res.render('home', { user: req.user, matches: predictionsWithLock, upcomingMatches, leaderboard, predictionsCount, correctPredictions, lockedWithoutPrediction, commitmentRate, userRank, userPoints, userEntry, top3, allMatchesCount, lastMatch, lastPrediction, gapToFifth, teamFlags, newsItems });
   } catch (err) {
     console.error('Home error:', err);
     res.status(500).render('error', { message: 'حدث خطأ في تحميل الصفحة' });
@@ -410,10 +415,23 @@ app.get('/predictions', requireAuth, async (req, res) => {
     const userPoints = leaderboard.find(p => p.id === req.user.id)?.total || 0;
     const totalPlayers = leaderboard.length;
     const top3 = leaderboard.slice(0, 3);
+    // حساب المباريات الفائتة (من مباراة الأرجنتين × الجزائر فصاعداً)
+    var missedPredictions = 0;
+    var missedMatchNames = [];
+    try {
+      var lockedMatches = allMatches.filter(function(m) {
+        return publishedRounds.includes(m.round) && isPredictionLocked(m.start_at) && m.id >= db.MISSED_PREDICTIONS_START_MATCH_ID;
+      });
+      lockedMatches.forEach(function(lm) {
+        var hasPred = userPredictions.some(function(p) { return p.match_id === lm.id; });
+        if (!hasPred) { missedPredictions++; missedMatchNames.push({ teamA: lm.teamA, teamB: lm.teamB }); }
+      });
+    } catch (e) { /* ignore */ }
+    var commitmentRate = lockedMatches.length > 0 ? Math.round(((lockedMatches.length - missedPredictions) / lockedMatches.length) * 100) : 100;
     var message = null;
     if (req.query.msg === 'saved') message = 'تم حفظ التوقع بنجاح';
     else if (req.query.msg === 'updated') message = 'تم تحديث التوقع بنجاح';
-    res.render('predictions', { user: req.user, matches: predictions, top3, totalPlayers, allMatchesCount, predictionsCount, userRank, userPoints, message });
+    res.render('predictions', { user: req.user, matches: predictions, top3, totalPlayers, allMatchesCount, predictionsCount, userRank, userPoints, message, missedPredictions, commitmentRate, missedMatchNames });
   } catch (err) {
     console.error('Predictions error:', err);
     res.status(500).render('error', { message: 'حدث خطأ في تحميل الصفحة' });
@@ -800,10 +818,11 @@ app.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
       console.error('Error loading match predictions:', err.message || err);
     }
     // Compute missed predictions per user (محمي من الأخطاء)
+    // يتم احتساب المباريات الفائتة ابتداءً من مباراة الأرجنتين × الجزائر (ID 715) بسبب استئناف المسابقة بعد فقدان البيانات السابقة
     var leaderboardWithMissed = leaderboard;
     try {
       var lockedPublishedMatches = matches.filter(function(m) {
-        return publishedRounds.includes(m.round) && isPredictionLocked(m.start_at);
+        return publishedRounds.includes(m.round) && isPredictionLocked(m.start_at) && m.id >= db.MISSED_PREDICTIONS_START_MATCH_ID;
       });
       leaderboardWithMissed = leaderboard.map(function(entry) {
         var lockedPredCount = 0;
@@ -814,8 +833,11 @@ app.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
           if (hasPred) lockedPredCount++;
           else missedMatchNames.push({ teamA: lm.teamA, teamB: lm.teamB });
         });
+        var missed = lockedPublishedMatches.length - lockedPredCount;
         return Object.assign({}, entry, {
-          missed_predictions: lockedPublishedMatches.length - lockedPredCount,
+          missed_predictions: missed,
+          total_locked_matches: lockedPublishedMatches.length,
+          commitment_rate: lockedPublishedMatches.length > 0 ? Math.round(((lockedPublishedMatches.length - missed) / lockedPublishedMatches.length) * 100) : 100,
           missed_match_names: missedMatchNames
         });
       });

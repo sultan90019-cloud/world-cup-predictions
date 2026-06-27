@@ -82,6 +82,22 @@
               <div class="hm2-stat-label">توقعات صحيحة</div>
               <div class="hm2-stat-sublabel">أحسنت!</div>
             </div>
+            <div class="hm2-stat-card" style="border-color:<%= lockedWithoutPrediction > 0 ? '#ef4444' : '#22c55e' %>;">
+              <div class="hm2-stat-icon" style="background:<%= lockedWithoutPrediction > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)' %>;color:<%= lockedWithoutPrediction > 0 ? '#ef4444' : '#22c55e' %>;">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              </div>
+              <div class="hm2-stat-num" style="color:<%= lockedWithoutPrediction > 0 ? '#ef4444' : '#22c55e' %>;"><%= lockedWithoutPrediction || 0 %></div>
+              <div class="hm2-stat-label">مباريات فائتة</div>
+              <div class="hm2-stat-sublabel">من بداية الأرجنتين × الجزائر</div>
+            </div>
+            <div class="hm2-stat-card" style="border-color:<%= commitmentRate < 80 ? '#ef4444' : '#22c55e' %>;">
+              <div class="hm2-stat-icon" style="background:<%= commitmentRate < 80 ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)' %>;color:<%= commitmentRate < 80 ? '#ef4444' : '#22c55e' %>;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <div class="hm2-stat-num" style="color:<%= commitmentRate < 80 ? '#ef4444' : '#22c55e' %>;"><%= commitmentRate %>%</div>
+              <div class="hm2-stat-label">نسبة الالتزام</div>
+              <div class="hm2-stat-sublabel"><%= commitmentRate >= 80 ? 'ممتاز 🎯' : (commitmentRate >= 50 ? 'جيد' : 'بحاجة للتحسين') %></div>
+            </div>
           </div>
 
           <!-- Add Predictions Banner -->
@@ -210,6 +226,28 @@
               <span class="hm-stat-lbl">نقاطك الحالية</span>
             </div>
           </div>
+          <div class="hm-stat-card" style="<%= lockedWithoutPrediction > 0 ? 'border-color:#ef4444;background:rgba(239,68,68,0.06);' : 'border-color:#22c55e;background:rgba(34,197,94,0.06);' %>">
+            <div class="hm-stat-icon" style="background:<%= lockedWithoutPrediction > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)' %>;color:<%= lockedWithoutPrediction > 0 ? '#ef4444' : '#22c55e' %>;">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </div>
+            <div class="hm-stat-info">
+              <span class="hm-stat-num" style="color:<%= lockedWithoutPrediction > 0 ? '#ef4444' : '#22c55e' %>;"><%= lockedWithoutPrediction || 0 %></span>
+              <span class="hm-stat-lbl">مباريات فائتة</span>
+            </div>
+          </div>
+          <div class="hm-stat-card">
+            <div class="hm-stat-icon" style="background:<%= commitmentRate >= 80 ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)' %>;color:<%= commitmentRate >= 80 ? '#22c55e' : '#ef4444' %>;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="hm-stat-info">
+              <span class="hm-stat-num" style="color:<%= commitmentRate >= 80 ? '#22c55e' : '#ef4444' %>;"><%= commitmentRate %>%</span>
+              <span class="hm-stat-lbl">نسبة الالتزام</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:0.78rem;color:var(--text-secondary);margin:8px 0 16px;padding:10px 14px;background:rgba(251,191,36,0.08);border-radius:10px;border:1px solid rgba(251,191,36,0.2);text-align:center;">
+          ⓘ يتم احتساب المباريات الفائتة ابتداءً من مباراة الأرجنتين × الجزائر (17 يونيو) بسبب استئناف المسابقة بعد فقدان البيانات السابقة.
         </div>
 
         <!-- Matches Section -->

@@ -12,6 +12,9 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL?.includes('sslmode=require') ? { rejectUnauthorized: false } : false
 });
 
+// نقطة البداية لاحتساب المباريات الفائتة (بعد فقدان البيانات القديمة)
+const MISSED_PREDICTIONS_START_MATCH_ID = 715; // الأرجنتين × الجزائر — 17 يونيو 2026
+
 const GROUPS = {
   'المجموعة A': ['المكسيك', 'جنوب أفريقيا', 'كوريا الجنوبية', 'التشيك'],
   'المجموعة B': ['كندا', 'البوسنة والهرسك', 'قطر', 'سويسرا'],
@@ -1238,6 +1241,7 @@ function getGroups() {
 module.exports = {
   pool,
   init,
+  MISSED_PREDICTIONS_START_MATCH_ID,
   findUserByUsername,
   getUserById,
   updateUserPassword,

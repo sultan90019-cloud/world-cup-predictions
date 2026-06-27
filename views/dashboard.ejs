@@ -869,21 +869,26 @@
         <!-- ===== TAB: الترتيب ===== -->
         <div class="db-panel <%= activeTab==='leaderboard'?'active':'' %>" id="panel-leaderboard">
           <div class="card section-card">
+            <div style="font-size:0.78rem;color:var(--text-secondary);padding:8px 12px;margin-bottom:8px;background:rgba(251,191,36,0.08);border-radius:10px;border:1px solid rgba(251,191,36,0.2);">
+              ⓘ يتم احتساب المباريات الفائتة ابتداءً من مباراة الأرجنتين × الجزائر (17 يونيو) بسبب استئناف المسابقة بعد فقدان البيانات السابقة.
+            </div>
             <table>
               <thead>
-                <tr><th>#</th><th>الاسم</th><th>المعرف</th><th>النقاط</th><th>التوقعات المفقودة</th></tr>
+                <tr><th>#</th><th>الاسم</th><th>المعرف</th><th>النقاط</th><th>التزام</th><th>التوقعات المفقودة</th></tr>
               </thead>
               <tbody>
                 <% leaderboard.forEach(function(player, index) {
                   var mp = player.missed_predictions || 0;
                   var mpClass = mp === 0 ? 'mp-green' : (mp <= 2 ? 'mp-yellow' : 'mp-red');
                   var mpLabel = mp === 0 ? '0 ✅' : mp + (mp <= 2 ? ' 🟡' : ' 🔴');
+                  var commit = player.commitment_rate != null ? player.commitment_rate : (player.total_locked_matches > 0 ? Math.round(((player.total_locked_matches - mp) / player.total_locked_matches) * 100) : 100);
                 %>
                 <tr>
                   <td><strong><%= index + 1 %></strong></td>
                   <td><%= player.name %></td>
                   <td style="color:var(--text-secondary);font-size:0.85rem;">@<%= player.username %></td>
                   <td><strong style="color:var(--primary);"><%= player.total %></strong></td>
+                  <td><%= commit %>%</td>
                   <td>
                     <span class="mp-badge <%= mpClass %>" style="cursor:<%= mp>0?'pointer':'default' %>;" onclick="<%= mp>0 ? 'showMissedPredictions(' + JSON.stringify(player.name) + ',' + JSON.stringify(player.missed_match_names) + ')' : '' %>"><%= mpLabel %></span>
                   </td>
